@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pages-dev-live",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "pages", "dev", "public", "--local", "--port", "8788", "--binding", "DASHBOARD_DATA_MODE=live"],
+      "port": 8788
+    }
+  ]
+}

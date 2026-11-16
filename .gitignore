@@ -1,0 +1,15 @@
+node_modules/
+.wrangler/
+dist/
+tmp/
+
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+.DS_Store
+__pycache__/
+*.pyc

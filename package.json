@@ -1,0 +1,19 @@
+{
+  "name": "polymarket-snapshot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "dev:local": "wrangler pages dev public --local",
+    "d1:local:init": "wrangler d1 execute polymarket-snapshot --local --file=./d1/schema.sql",
+    "d1:local:seed": "wrangler d1 execute polymarket-snapshot --local --file=./d1/seed.local.sql",
+    "d1:local:reset": "wrangler d1 execute polymarket-snapshot --local --file=./d1/reset.sql",
+    "d1:local:sync": "./scripts/sync_remote_d1_to_local.sh",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260329.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.9.1"
+  }
+}

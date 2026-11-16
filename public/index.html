@@ -1,0 +1,2955 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="classic">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polymarket Snapshot</title>
+  <meta name="theme-color" content="#faf9f5">
+  <script>
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem("polymarket_dashboard_theme"); } catch (error) {}
+      var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      var theme = saved === "classic" || saved === "midnight" ? saved : (dark ? "midnight" : "classic");
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <style>
+    /* ---------- Design tokens ---------- */
+    :root,
+    :root[data-theme="classic"] {
+      color-scheme: light;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-serif: "Iowan Old Style", "Charter", Georgia, "Songti SC", "Noto Serif SC", serif;
+      --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --surface-2: #f5f3ec;
+      --surface-hover: #f8f6f0;
+      --ink: #1f1e1d;
+      --ink-2: #3d3b37;
+      --muted: #807d75;
+      --line: #ebe8df;
+      --line-strong: #dcd8cc;
+
+      --accent: #d97757;
+      --accent-strong: #c2603f;
+      --accent-ink: #b5532f;
+      --accent-soft: #fbeee8;
+      --accent-line: rgba(217, 119, 87, 0.36);
+      --on-accent: #ffffff;
+
+      --profit-up: #c63d3d;
+      --profit-down: #2c7d5a;
+      --danger: #c63d3d;
+      --danger-soft: rgba(198, 61, 61, 0.08);
+
+      --overlay: rgba(250, 249, 245, 0.72);
+      --scrim: rgba(31, 30, 29, 0.24);
+      --shadow-sm: 0 1px 2px rgba(31, 30, 29, 0.04);
+      --shadow-md: 0 12px 32px rgba(31, 30, 29, 0.10);
+
+      --green: var(--profit-up);
+      --red: var(--profit-down);
+    }
+
+    :root[data-theme="midnight"] {
+      color-scheme: dark;
+      --bg: #1a1918;
+      --surface: #232220;
+      --surface-2: #2b2a27;
+      --surface-hover: #292826;
+      --ink: #f2f0ea;
+      --ink-2: #d6d3cb;
+      --muted: #9b978d;
+      --line: #34322f;
+      --line-strong: #45423e;
+
+      --accent: #d97757;
+      --accent-strong: #e48a6b;
+      --accent-ink: #eb9677;
+      --accent-soft: rgba(217, 119, 87, 0.14);
+      --accent-line: rgba(217, 119, 87, 0.5);
+      --on-accent: #1a1918;
+
+      --profit-up: #ef7373;
+      --profit-down: #5cc495;
+      --danger: #ef7373;
+      --danger-soft: rgba(239, 115, 115, 0.12);
+
+      --overlay: rgba(26, 25, 24, 0.72);
+      --scrim: rgba(0, 0, 0, 0.5);
+      --shadow-sm: none;
+      --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ---------- Base ---------- */
+    * { box-sizing: border-box; }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 64px;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 8px 12px;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---------- Header ---------- */
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .hero-text { display: grid; gap: 10px; min-width: 0; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-ink);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: clamp(30px, 4vw, 40px);
+      font-weight: 500;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle { display: none; }
+
+
+    .wallet-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    .settings-wallet {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .settings-wallet[hidden] { display: none; }
+
+    .settings-wallet .wallet-chip { height: 26px; padding: 0 8px; margin-left: -2px; }
+
+    .wallet-chip svg { width: 13px; height: 13px; color: var(--muted); }
+
+    .wallet-chip:hover svg { color: var(--accent-ink); }
+
+    .wallet-chip.copied {
+      font-family: var(--font-sans);
+      color: var(--accent-ink);
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    /* ---------- Metrics ---------- */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .card, .table-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card {
+      position: relative;
+      padding: 18px 20px;
+      overflow: hidden;
+    }
+
+    .metrics .card:first-child::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: var(--accent);
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      margin: 0;
+      font-size: clamp(24px, 2.6vw, 30px);
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-note {
+      margin: 6px 0 0;
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-note:empty { display: none; }
+
+    .sparkline {
+      display: none;
+      width: 100%;
+      height: 32px;
+      margin-top: 10px;
+      overflow: visible;
+    }
+
+    .sparkline.visible { display: block; }
+
+    .spark-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.75;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .spark-area { fill: var(--accent-soft); }
+
+    .card.is-unavailable .value { color: var(--muted); }
+
+    .card.is-unavailable .metric-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-ink);
+      cursor: help;
+    }
+
+    .card.is-unavailable .metric-note::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+
+    /* ---------- Layout ---------- */
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 20px;
+      align-items: start;
+    }
+
+
+    .table-card { overflow: hidden; }
+
+    .table-head { padding: 18px 20px 0; }
+
+
+    .table-head-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .table-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+
+    .table-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.005em;
+    }
+
+
+    /* ---------- Positions table ---------- */
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th, td {
+      padding: 12px 20px;
+      border-top: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th:nth-child(n+3), td:nth-child(n+3) {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding-top: 9px;
+      padding-bottom: 9px;
+    }
+
+    td { font-size: 14px; color: var(--ink-2); }
+
+    tbody tr { transition: background 0.12s ease; }
+    tbody tr:hover { background: var(--surface-hover); }
+
+    .market-cell {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .market-text { display: grid; gap: 2px; min-width: 0; text-align: left; }
+
+    .market-title {
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    .market-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .market-icon {
+      position: relative;
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      overflow: hidden;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .market-icon img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cell-price { color: var(--muted); }
+
+    .price-arrow { margin: 0 4px; color: var(--line-strong); }
+
+    .price-now { color: var(--ink); font-weight: 500; }
+
+    .pnl-pct { margin-top: 2px; font-size: 12px; opacity: 0.85; }
+
+    .change-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: 8px;
+      padding: 0 6px;
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      color: var(--ink-2);
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 17px;
+      white-space: nowrap;
+      vertical-align: 1px;
+    }
+
+    .change-tag svg { width: 11px; height: 11px; }
+
+    .change-tag.new {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+
+    .change-tag.closed { color: var(--muted); }
+
+    .change-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 14px;
+    }
+
+
+    .change-filters[hidden] { display: none; }
+
+    .change-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .change-filter:hover { color: var(--ink); }
+
+    .change-filter-count {
+      color: var(--ink-2);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .change-filter.active {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+
+    .change-filter.active .change-filter-count { color: var(--accent-ink); }
+
+    /* Show/hide unchanged markets: a quieter chip pushed to the end of the row. */
+    .unchanged-toggle {
+      margin-left: auto;
+      border-style: dashed;
+      background: transparent;
+    }
+
+    .unchanged-toggle[aria-pressed="true"] {
+      border-style: solid;
+      border-color: var(--line-strong);
+      background: var(--surface-2);
+      color: var(--ink-2);
+    }
+
+    .section-row td {
+      padding-top: 18px;
+      padding-bottom: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      text-align: left !important;
+    }
+
+    .is-closed td { color: var(--muted); }
+
+    .is-closed .market-title,
+    .is-closed .market-link { color: var(--muted); }
+
+    .is-closed .market-title {
+      text-decoration: line-through;
+      text-decoration-color: var(--line-strong);
+    }
+
+    .is-closed .market-icon { opacity: 0.55; filter: grayscale(1); }
+
+    .muted-dash { color: var(--muted); }
+
+    .group-row td { background: var(--surface); }
+
+    .group-row:hover td { background: var(--surface-hover); }
+
+    .group-toggle {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      text-align: left;
+    }
+
+    .group-toggle:hover { background: transparent; }
+
+    .group-chevron {
+      flex: 0 0 auto;
+      width: 16px;
+      height: 16px;
+      margin: 6px -4px 0 -6px;
+      color: var(--muted);
+      transition: transform 0.15s ease;
+    }
+
+    .group-row.expanded .group-chevron { transform: rotate(90deg); color: var(--accent-ink); }
+
+    .group-row .market-title { color: var(--ink); }
+
+    .group-child td { background: var(--surface-2); border-top-color: transparent; }
+
+    .group-child:hover td { background: var(--surface-hover); }
+
+    .group-child .cell-market { padding-left: 44px; }
+
+    .group-child .market-icon { width: 22px; height: 22px; border-radius: 6px; }
+
+    .market-link {
+      color: inherit;
+      text-decoration: none;
+      background-image: linear-gradient(var(--accent), var(--accent));
+      background-size: 0 1px;
+      background-position: 0 100%;
+      background-repeat: no-repeat;
+      transition: background-size 0.2s ease, color 0.15s ease;
+    }
+
+    .market-link:hover { color: var(--accent-ink); background-size: 100% 1px; }
+
+    .outcome-pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .delta {
+      display: block;
+      width: fit-content;
+      margin: 4px 0 0 auto;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.5;
+      white-space: nowrap;
+      background: var(--surface-2);
+    }
+
+    .delta.positive { background: color-mix(in srgb, var(--green) 11%, transparent); }
+    .delta.negative { background: color-mix(in srgb, var(--red) 11%, transparent); }
+
+    :root[data-theme="midnight"] .delta.positive { background: color-mix(in srgb, var(--green) 16%, transparent); }
+    :root[data-theme="midnight"] .delta.negative { background: color-mix(in srgb, var(--red) 16%, transparent); }
+
+    .empty {
+      padding: 28px 20px 32px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ---------- Icon buttons & menus ---------- */
+    .icon-button {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-2);
+      flex: 0 0 auto;
+    }
+
+    .icon-button svg { width: 18px; height: 18px; display: block; }
+
+    .icon-button .icon { display: inline-flex; align-items: center; justify-content: center; }
+
+    #refreshBtn {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--on-accent);
+    }
+
+    #refreshBtn:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+    .history-range-button {
+      width: auto;
+      min-width: 0;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      opacity: 0.85;
+      animation: spin 0.8s linear infinite;
+      display: none;
+      flex: 0 0 auto;
+    }
+
+    .spinner.visible { display: inline-block; }
+
+    .icon-button.loading .icon { display: none; }
+
+    .button-content { display: inline-flex; align-items: center; gap: 8px; }
+
+    .ghost-button {
+      background: var(--surface);
+      color: var(--ink-2);
+    }
+
+
+
+    /* ---------- History ---------- */
+    .history-panel {
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      transform-origin: top right;
+    }
+
+
+    .history-panel[hidden] { display: none; }
+
+    .history-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .history-list {
+      padding: 0 12px 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .history-item {
+      width: 100%;
+      padding: 10px 10px 10px 14px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .history-item:hover { background: var(--surface-2); }
+
+    .history-item.active {
+      background: var(--accent-soft);
+      border-color: var(--accent-line);
+    }
+
+    .history-item.current {
+      background: var(--surface-2);
+      border-color: var(--line);
+    }
+
+    .history-item.current .history-time::after {
+      content: " · 当前";
+      color: var(--accent-ink);
+      font-weight: 500;
+    }
+
+    html[lang="en"] .history-item.current .history-time::after { content: " · current"; }
+
+    .history-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .history-summary { min-width: 0; display: grid; gap: 2px; }
+
+    .history-time { font-size: 12px; color: var(--muted); }
+
+    .history-main {
+      font-size: 15px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .history-action {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .history-item:hover .history-action,
+    .history-item.active .history-action {
+      color: var(--ink-2);
+    }
+
+    .history-action:hover {
+      background: var(--surface);
+      border-color: var(--line);
+      color: var(--accent-ink);
+    }
+
+    .history-item.active .history-action.compare { color: var(--accent-ink); }
+
+    .history-action.delete:hover {
+      color: var(--danger);
+      background: var(--danger-soft);
+      border-color: transparent;
+    }
+
+    .history-action:disabled { opacity: 0.5; cursor: wait; }
+
+    .history-action svg { width: 18px; height: 18px; display: block; }
+
+    .history-action.busy {
+      width: auto;
+      min-width: 64px;
+      padding: 0 10px;
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    .history-pagination {
+      padding: 4px 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .history-pagination[hidden] { display: none; }
+
+    .history-page-btn { height: 30px; padding: 0 12px; font-size: 12px; }
+
+    .history-page-info {
+      min-width: 56px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .compare-note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+    /* ---------- Loading and confirm dialogs ---------- */
+    .loading-overlay,
+    .confirm-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: var(--scrim);
+      z-index: 40;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.18s ease, visibility 0.18s;
+    }
+
+    .loading-overlay { background: var(--overlay); backdrop-filter: blur(2px); }
+
+    .loading-overlay.visible,
+    .confirm-modal.visible { opacity: 1; visibility: visible; }
+
+    .loading-card,
+    .confirm-panel {
+      width: min(380px, 100%);
+      padding: 20px;
+      border-radius: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-md);
+      transform: translateY(6px) scale(0.98);
+      transition: transform 0.18s ease;
+    }
+
+    .loading-overlay.visible .loading-card,
+    .confirm-modal.visible .confirm-panel { transform: none; }
+
+    .dialog-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .dialog-icon {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+
+    .loading-card .dialog-head { align-items: center; }
+
+    .dialog-icon svg { width: 20px; height: 20px; }
+
+    .dialog-icon.danger { background: var(--danger-soft); color: var(--danger); }
+
+    .dialog-copy { min-width: 0; padding-top: 1px; }
+
+    .dialog-title {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .dialog-body {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .loading-bar {
+      position: relative;
+      height: 3px;
+      margin-top: 18px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      overflow: hidden;
+    }
+
+    .loading-bar span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 38%;
+      border-radius: inherit;
+      background: var(--accent);
+      animation: loading-slide 1.3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    }
+
+    .loading-elapsed {
+      min-height: 16px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .confirm-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .confirm-btn {
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .confirm-btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #ffffff;
+    }
+
+    .confirm-btn.danger:hover { filter: brightness(1.06); background: var(--danger); border-color: var(--danger); }
+
+    :root[data-theme="midnight"] .confirm-btn.danger { color: #1a1918; }
+
+    @keyframes loading-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(265%); }
+    }
+
+    /* ---------- Settings ---------- */
+    .settings-anchor {
+      position: relative;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+
+    .settings-trigger { color: var(--muted); }
+
+    .settings-trigger:hover,
+    .settings-trigger.active { color: var(--ink); }
+
+    .settings-trigger.active {
+      background: var(--surface-2);
+      border-color: var(--line-strong);
+    }
+
+    .settings-trigger svg { transition: transform 0.3s ease; }
+
+    .settings-trigger.active svg { transform: rotate(60deg); }
+
+    .settings-modal {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 30;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .settings-modal.visible { visibility: visible; pointer-events: auto; }
+
+    .settings-panel {
+      width: 340px;
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-md);
+      transform-origin: top right;
+      transform: translateY(-4px) scale(0.98);
+      opacity: 0;
+      transition: transform 0.16s ease, opacity 0.16s ease;
+    }
+
+    .settings-panel:focus { outline: none; }
+
+    .settings-modal.visible .settings-panel { transform: none; opacity: 1; }
+
+    .settings-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .settings-title {
+      font-family: var(--font-serif);
+      font-size: 19px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+
+    .settings-close {
+      width: 28px;
+      height: 28px;
+      margin: -4px -4px 0 0;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .settings-close:hover { background: var(--surface-2); border-color: transparent; color: var(--ink); }
+
+    .settings-close svg { width: 16px; height: 16px; }
+
+    .settings-group { display: grid; gap: 6px; }
+
+    .settings-group + .settings-group { margin-top: 14px; }
+
+    .settings-label { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    .settings-options {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 2px;
+      padding: 3px;
+      border-radius: 9px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+
+    .settings-option {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 30px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .settings-option:hover { background: transparent; color: var(--ink); }
+
+    .settings-option.active {
+      background: var(--surface);
+      color: var(--accent-ink);
+      box-shadow: 0 1px 3px rgba(31, 30, 29, 0.10), 0 0 0 1px var(--line);
+    }
+
+    :root[data-theme="midnight"] .settings-option.active { background: var(--line-strong); }
+
+    .swatch {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .swatch.profit-up { color: var(--profit-up); }
+    .swatch.profit-down { color: var(--profit-down); }
+
+    .settings-option:not(.active) .swatch { opacity: 0.6; }
+
+    @media (max-width: 640px) {
+      .settings-modal {
+        position: fixed;
+        inset: 0;
+        top: 0;
+        display: flex;
+        align-items: flex-end;
+        background: var(--scrim);
+        opacity: 0;
+        transition: opacity 0.2s ease, visibility 0.2s;
+      }
+
+      .settings-modal.visible { opacity: 1; }
+
+      .settings-panel {
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+        border-radius: 18px 18px 0 0;
+        border-bottom: 0;
+        transform: translateY(100%);
+        opacity: 1;
+        transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      .settings-panel::before {
+        content: "";
+        display: block;
+        width: 36px;
+        height: 4px;
+        margin: 0 auto 12px;
+        border-radius: 999px;
+        background: var(--line-strong);
+      }
+
+      .settings-option { min-height: 36px; }
+
+      body.sheet-open { overflow: hidden; }
+    }
+
+    /* ---------- Motion ---------- */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes settings-spin-once {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1024px) {
+      .content-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .page { padding-top: 28px; }
+      .metrics { gap: 10px; }
+      .card { padding: 14px 16px; }
+      .table-head { padding: 16px 16px 0; }
+      th, td { padding-left: 12px; padding-right: 12px; }
+      th:first-child, td:first-child { padding-left: 16px; }
+      th:last-child, td:last-child { padding-right: 16px; }
+      table, tbody { display: block; }
+      thead { display: none; }
+
+      tbody tr {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-areas:
+          "market market market"
+          "side price price"
+          "size value pnl";
+        gap: 10px 12px;
+        padding: 14px 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      tbody td,
+      tbody td:first-child,
+      tbody td:last-child {
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+
+      .cell-market { grid-area: market; }
+      .cell-side { grid-area: side; text-align: left !important; }
+      .cell-price { grid-area: price; align-self: center; font-size: 12px; }
+      .cell-size { grid-area: size; text-align: left !important; }
+      .cell-value { grid-area: value; }
+      .cell-pnl { grid-area: pnl; }
+
+      .cell-size .delta { margin-left: 0; }
+
+      td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 400;
+      }
+
+      .cell-price::before { display: none !important; }
+
+      .group-row { grid-template-areas: "market market market" ". value pnl"; }
+      .group-row .cell-side, .group-row .cell-size, .group-row .cell-price { display: none; }
+      .group-row td, .group-row:hover td { background: transparent; }
+
+      .section-row { display: block; padding: 16px 16px 6px; }
+      .section-row td { display: block; padding: 0 !important; }
+
+      .group-child { background: var(--surface-2); }
+      .group-child .cell-market { padding-left: 24px; }
+      .group-child td, .group-child:hover td { background: transparent; }
+      .table-head-row { align-items: flex-start; }
+      .table-title-wrap { flex-wrap: wrap; }
+      .history-toolbar { margin-left: 0; justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-text">
+        <div id="heroEyebrow" class="eyebrow">Polymarket</div>
+        <h1 id="heroTitle">持仓快照</h1>
+        <div id="status" class="status" hidden></div>
+      </div>
+      <div id="settingsAnchor" class="settings-anchor">
+        <button id="settingsBtn" class="icon-button settings-trigger" type="button" aria-label="设置" title="设置" aria-haspopup="dialog" aria-expanded="false" aria-controls="settingsPanel">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 1 0 12 8.5Z" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M19 12C19 11.47 18.95 10.95 18.84 10.45L21 8.86L18.9 5.14L16.32 6.09C15.54 5.43 14.61 4.97 13.6 4.78L13.2 2H10.8L10.4 4.78C9.39 4.97 8.46 5.43 7.68 6.09L5.1 5.14L3 8.86L5.16 10.45C5.05 10.95 5 11.47 5 12C5 12.53 5.05 13.05 5.16 13.55L3 15.14L5.1 18.86L7.68 17.91C8.46 18.57 9.39 19.03 10.4 19.22L10.8 22H13.2L13.6 19.22C14.61 19.03 15.54 18.57 16.32 17.91L18.9 18.86L21 15.14L18.84 13.55C18.95 13.05 19 12.53 19 12Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="settingsModal" class="settings-modal" aria-hidden="true">
+          <div id="settingsPanel" class="settings-panel" role="dialog" aria-labelledby="settingsTitle" tabindex="-1">
+            <div class="settings-header">
+              <div>
+                <div id="settingsTitle" class="settings-title">设置</div>
+              </div>
+              <button id="settingsCloseBtn" class="icon-button settings-close" type="button" aria-label="关闭" title="关闭">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <div class="settings-group">
+              <div id="themeLabel" class="settings-label">主题</div>
+              <div class="settings-options">
+                <button id="themeSystemBtn" class="settings-option" type="button">跟随系统</button>
+                <button id="themeClassicBtn" class="settings-option" type="button">浅色</button>
+                <button id="themeMidnightBtn" class="settings-option" type="button">深色</button>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div id="languageLabel" class="settings-label">语言</div>
+              <div class="settings-options">
+                <button id="languageZhBtn" class="settings-option" type="button">中文</button>
+                <button id="languageEnBtn" class="settings-option" type="button">English</button>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div id="profitColorLabel" class="settings-label">盈亏颜色</div>
+              <div class="settings-options">
+                <button id="profitColorRedBtn" class="settings-option" type="button">红盈绿亏</button>
+                <button id="profitColorGreenBtn" class="settings-option" type="button">绿盈红亏</button>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div id="defaultViewLabel" class="settings-label">对比时默认显示</div>
+              <div class="settings-options">
+                <button id="defaultViewSimplifiedBtn" class="settings-option" type="button">仅有变化</button>
+                <button id="defaultViewFullBtn" class="settings-option" type="button">全部</button>
+              </div>
+            </div>
+            <div id="walletRow" class="settings-wallet" hidden>
+              <span id="walletLabel">钱包地址：</span>
+              <button id="walletChip" class="wallet-chip" type="button">
+                <span id="walletChipText" class="wallet-chip-text"></span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="metrics">
+      <article class="card">
+        <div id="labelTotalAssets" class="label">总资产</div>
+        <p class="value" id="totalAssets">-</p>
+        <p id="totalAssetsNote" class="metric-note"></p>
+        <svg id="assetsSpark" class="sparkline" viewBox="0 0 200 36" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </article>
+      <article id="usdcCard" class="card">
+        <div id="labelUsdc" class="label">pUSD</div>
+        <p class="value" id="usdcBalance">-</p>
+        <p id="usdcNote" class="metric-note"></p>
+      </article>
+      <article class="card">
+        <div id="labelPositionsValue" class="label">持仓市值</div>
+        <p class="value" id="positionsValue">-</p>
+        <p id="positionsValueNote" class="metric-note"></p>
+      </article>
+      <article class="card">
+        <div id="labelComparePnl" class="label">对比盈亏</div>
+        <p class="value" id="totalPnl">-</p>
+        <p id="totalPnlNote" class="metric-note"></p>
+      </article>
+    </section>
+
+    <section id="contentGrid" class="content-grid">
+      <section class="table-card">
+        <div class="table-head">
+          <div class="table-head-row">
+            <div class="table-title-wrap">
+              <h2 id="positionsTitle" class="table-title">持仓明细</h2>
+            </div>
+          </div>
+          <div id="changeFilters" class="change-filters" role="group" hidden></div>
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th id="thMarket">市场</th>
+              <th id="thOutcome">方向</th>
+              <th id="thSize">仓位</th>
+              <th id="thPrice">均价 → 现价</th>
+              <th id="thCurrentValue">当前价值</th>
+              <th id="thPnl">盈亏</th>
+            </tr>
+          </thead>
+          <tbody id="positionsBody"></tbody>
+        </table>
+        </div>
+        <div id="positionsEmpty" class="empty" hidden>暂无持仓数据。</div>
+      </section>
+
+      <aside id="historyPanel" class="table-card history-panel">
+        <div class="table-head">
+          <div class="table-head-row">
+            <div class="table-title-wrap">
+              <h2 id="historyTitle" class="table-title">历史对比</h2>
+              <div id="historyToolbar" class="history-toolbar">
+                <button id="compareHighestBtn" class="icon-button history-range-button" type="button" aria-label="highest" title="highest">highest</button>
+                <button id="compareLowestBtn" class="icon-button history-range-button" type="button" aria-label="lowest" title="lowest">lowest</button>
+                <button id="refreshBtn" class="icon-button" type="button" aria-label="新快照" title="新快照">
+                  <span class="icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </span>
+                  <span id="refreshSpinner" class="spinner" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="historyList" class="history-list"></div>
+        <div id="historyPagination" class="history-pagination" hidden>
+          <button id="historyPrevBtn" class="history-page-btn" type="button">上一页</button>
+          <div id="historyPageInfo" class="history-page-info">1 / 1</div>
+          <button id="historyNextBtn" class="history-page-btn" type="button">下一页</button>
+        </div>
+        <div id="historyEmpty" class="empty" hidden>暂无历史快照。</div>
+      </aside>
+    </section>
+  </main>
+
+  <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+    <div class="loading-card" role="status" aria-live="polite">
+      <div class="dialog-head">
+        <span id="loadingIcon" class="dialog-icon" aria-hidden="true"></span>
+        <div class="dialog-copy">
+          <div id="loadingText" class="dialog-title">正在拉取最新数据</div>
+        </div>
+      </div>
+      <div class="loading-bar" aria-hidden="true"><span></span></div>
+      <div id="loadingElapsed" class="loading-elapsed"></div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="confirm-modal" aria-hidden="true">
+    <div id="confirmPanel" class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmBody">
+      <div class="dialog-head">
+        <span class="dialog-icon danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7H20M9 4H15M10 11V17M14 11V17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="7" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>
+        </span>
+        <div class="dialog-copy">
+          <div id="confirmTitle" class="dialog-title"></div>
+          <p id="confirmBody" class="dialog-body"></p>
+        </div>
+      </div>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" class="confirm-btn" type="button"></button>
+        <button id="confirmOkBtn" class="confirm-btn danger" type="button"></button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    const el = {
+      refreshBtn: document.getElementById("refreshBtn"),
+      refreshSpinner: document.getElementById("refreshSpinner"),
+      settingsBtn: document.getElementById("settingsBtn"),
+      settingsModal: document.getElementById("settingsModal"),
+      settingsPanel: document.getElementById("settingsPanel"),
+      settingsAnchor: document.getElementById("settingsAnchor"),
+      settingsCloseBtn: document.getElementById("settingsCloseBtn"),
+      themeSystemBtn: document.getElementById("themeSystemBtn"),
+      heroEyebrow: document.getElementById("heroEyebrow"),
+      heroTitle: document.getElementById("heroTitle"),
+      labelTotalAssets: document.getElementById("labelTotalAssets"),
+      labelUsdc: document.getElementById("labelUsdc"),
+      labelPositionsValue: document.getElementById("labelPositionsValue"),
+      labelComparePnl: document.getElementById("labelComparePnl"),
+      positionsTitle: document.getElementById("positionsTitle"),
+      historyTitle: document.getElementById("historyTitle"),
+      compareHighestBtn: document.getElementById("compareHighestBtn"),
+      compareLowestBtn: document.getElementById("compareLowestBtn"),
+      thMarket: document.getElementById("thMarket"),
+      thOutcome: document.getElementById("thOutcome"),
+      thSize: document.getElementById("thSize"),
+      thCurrentValue: document.getElementById("thCurrentValue"),
+      thPnl: document.getElementById("thPnl"),
+      thPrice: document.getElementById("thPrice"),
+      walletRow: document.getElementById("walletRow"),
+      walletLabel: document.getElementById("walletLabel"),
+      walletChip: document.getElementById("walletChip"),
+      walletChipText: document.getElementById("walletChipText"),
+      totalAssetsNote: document.getElementById("totalAssetsNote"),
+      assetsSpark: document.getElementById("assetsSpark"),
+      usdcCard: document.getElementById("usdcCard"),
+      usdcNote: document.getElementById("usdcNote"),
+      positionsValueNote: document.getElementById("positionsValueNote"),
+      totalPnlNote: document.getElementById("totalPnlNote"),
+      changeFilters: document.getElementById("changeFilters"),
+      settingsTitle: document.getElementById("settingsTitle"),
+      themeLabel: document.getElementById("themeLabel"),
+      themeClassicBtn: document.getElementById("themeClassicBtn"),
+      themeMidnightBtn: document.getElementById("themeMidnightBtn"),
+      languageLabel: document.getElementById("languageLabel"),
+      languageZhBtn: document.getElementById("languageZhBtn"),
+      languageEnBtn: document.getElementById("languageEnBtn"),
+      profitColorLabel: document.getElementById("profitColorLabel"),
+      defaultViewLabel: document.getElementById("defaultViewLabel"),
+      profitColorRedBtn: document.getElementById("profitColorRedBtn"),
+      profitColorGreenBtn: document.getElementById("profitColorGreenBtn"),
+      defaultViewSimplifiedBtn: document.getElementById("defaultViewSimplifiedBtn"),
+      defaultViewFullBtn: document.getElementById("defaultViewFullBtn"),
+      status: document.getElementById("status"),
+      totalAssets: document.getElementById("totalAssets"),
+      usdcBalance: document.getElementById("usdcBalance"),
+      positionsValue: document.getElementById("positionsValue"),
+      totalPnl: document.getElementById("totalPnl"),
+      contentGrid: document.getElementById("contentGrid"),
+      positionsBody: document.getElementById("positionsBody"),
+      positionsEmpty: document.getElementById("positionsEmpty"),
+      historyPanel: document.getElementById("historyPanel"),
+      historyList: document.getElementById("historyList"),
+      historyPagination: document.getElementById("historyPagination"),
+      historyPrevBtn: document.getElementById("historyPrevBtn"),
+      historyPageInfo: document.getElementById("historyPageInfo"),
+      historyNextBtn: document.getElementById("historyNextBtn"),
+      historyEmpty: document.getElementById("historyEmpty"),
+      loadingOverlay: document.getElementById("loadingOverlay"),
+      loadingText: document.getElementById("loadingText"),
+      loadingIcon: document.getElementById("loadingIcon"),
+      loadingElapsed: document.getElementById("loadingElapsed"),
+      confirmModal: document.getElementById("confirmModal"),
+      confirmPanel: document.getElementById("confirmPanel"),
+      confirmTitle: document.getElementById("confirmTitle"),
+      confirmBody: document.getElementById("confirmBody"),
+      confirmCancelBtn: document.getElementById("confirmCancelBtn"),
+      confirmOkBtn: document.getElementById("confirmOkBtn")
+    };
+    let latestPayload = null;
+    let activeCompareSnapshotId = null;
+    let isRefreshing = false;
+    let busyAction = null;
+    let busySnapshotId = null;
+    let hideUnchangedMarkets = false;
+    let latestComparePayload = null;
+    let historyPage = 1;
+    let settingsOpen = false;
+    const expandedGroups = new Set();
+    const CHANGE_FILTERS = ["all", "new", "added", "reduced", "closed", "price"];
+    let changeFilter = "all";
+    let lastRenderedPositions = [];
+    let lastRenderedCompare = null;
+    let lastRenderedClosedSince = null;
+    let copiedTimer = null;
+    let currentTheme = "system";
+    const systemDarkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    const mobileSheetQuery = window.matchMedia ? window.matchMedia("(max-width: 640px)") : null;
+    let profitColorMode = "red-profit";
+    let defaultCompareView = "simplified";
+    let currentLanguage = "zh";
+    const HISTORY_PAGE_SIZE = 5;
+
+    const STORAGE_KEYS = {
+      theme: "polymarket_dashboard_theme",
+      profitColorMode: "polymarket_dashboard_profit_color_mode",
+      defaultCompareView: "polymarket_dashboard_default_compare_view",
+      language: "polymarket_dashboard_language"
+    };
+
+    const THEME_NAMES = ["classic", "midnight"];
+
+    const I18N = {
+      zh: {
+        pageTitle: "Polymarket Snapshot Dashboard",
+        heroEyebrow: "Polymarket",
+        heroTitle: "持仓快照",
+        labelTotalAssets: "总资产",
+        labelUsdc: "pUSD",
+        labelPositionsValue: "持仓市值",
+        labelComparePnl: "对比盈亏",
+        positionsTitle: "持仓明细",
+        historyTitle: "历史对比",
+        thMarket: "市场",
+        thOutcome: "方向",
+        thSize: "仓位",
+        thCurrentValue: "当前价值",
+        thPnl: "盈亏",
+        thPrice: "均价 → 现价",
+        groupMarkets: "{count} 个市场",
+        settleInDays: "{days} 天后结算",
+        settleToday: "今日结算",
+        settleEnded: "已过结算日",
+        pusdFailed: "获取失败，未计入总资产",
+        totalExcludesPusd: "不含 pUSD",
+        positionsCountNote: "{count} 个活跃持仓",
+        compareNote: "{pct} · 对比 {time}",
+        walletLabel: "钱包地址：",
+        copyAddress: "复制钱包地址",
+        copied: "已复制",
+        filterAll: "全部",
+        showUnchanged: "显示未变化",
+        hideUnchanged: "隐藏未变化",
+        statusNew: "新开仓",
+        statusAdded: "加仓",
+        statusReduced: "减仓",
+        statusClosed: "已清仓",
+        statusPrice: "仅价格变动",
+        closedSection: "已清仓 {count} 个 · 当时 {value}",
+        closedSectionSince: " · 自 {time}",
+        realizedLabel: "已实现",
+        positionsEmpty: "暂无持仓数据。",
+        compareHighest: "最高",
+        compareLowest: "最低",
+        compareHighestHint: "近期最高",
+        compareLowestHint: "近期最低",
+        historyEmpty: "暂无历史快照。",
+        historyPrev: "上一页",
+        historyNext: "下一页",
+        historyPageInfo: "{current} / {total}",
+        refreshLabel: "新快照",
+        loadingRefreshTitle: "正在拉取最新数据",
+        settingsButton: "设置",
+        settingsTitle: "设置",
+        closeSettings: "关闭",
+        themeSystem: "跟随系统",
+        defaultViewChanged: "仅有变化",
+        defaultViewAll: "全部",
+        themeLabel: "主题",
+        themeClassic: "浅色",
+        themeMidnight: "深色",
+        languageLabel: "语言",
+        languageZh: "中文",
+        languageEn: "English",
+        profitColorLabel: "盈亏颜色",
+        profitColorRed: "红盈绿亏",
+        profitColorGreen: "绿盈红亏",
+        defaultViewLabel: "对比时默认显示",
+        compare: "对比",
+        compareBusy: "对比中...",
+        delete: "删除",
+        deleteBusy: "删除中...",
+        currentSnapshot: "当前快照",
+        loadingCompareTitle: "正在加载历史对比",
+        statusLoadingCompare: "加载历史对比...",
+        statusCompareFailed: "历史对比失败: {message}",
+        statusCompareFailedDefault: "默认历史对比失败: {message}",
+        deleteConfirm: "确认删除这个快照吗？",
+        deleteConfirmTitle: "删除这个快照？",
+        deleteConfirmBody: "{time} 的快照（总资产 {value}）及其持仓明细会被永久删除，无法恢复。",
+        cancelAction: "取消",
+        deleteAction: "删除",
+        loadingElapsed: "已用 {seconds} 秒",
+        statusDeleting: "正在删除快照...",
+        loadingDeleteTitle: "正在删除历史快照",
+        statusDeleted: "快照已删除",
+        statusDeleteFailed: "删除失败: {message}",
+        statusLoading: "加载中...",
+        statusLoadFailed: "加载失败: {message}",
+        statusRefreshing: "正在拉取最新数据...",
+        statusRefreshDone: "快照已更新 · {positionsCount} 个持仓",
+        statusRefreshFailed: "更新失败: {message}"
+      },
+      en: {
+        pageTitle: "Polymarket Snapshot Dashboard",
+        heroEyebrow: "Polymarket",
+        heroTitle: "Wallet Snapshot",
+        labelTotalAssets: "Total Assets",
+        labelUsdc: "pUSD",
+        labelPositionsValue: "Positions Value",
+        labelComparePnl: "Compare PnL",
+        positionsTitle: "Positions",
+        historyTitle: "History",
+        thMarket: "Market",
+        thOutcome: "Side",
+        thSize: "Size",
+        thCurrentValue: "Current Value",
+        thPnl: "PnL",
+        thPrice: "Avg → Now",
+        groupMarkets: "{count} markets",
+        settleInDays: "Resolves in {days}d",
+        settleToday: "Resolves today",
+        settleEnded: "Past resolution date",
+        pusdFailed: "Unavailable, not in total",
+        totalExcludesPusd: "Excludes pUSD",
+        positionsCountNote: "{count} active positions",
+        compareNote: "{pct} vs {time}",
+        walletLabel: "Wallet address:",
+        copyAddress: "Copy wallet address",
+        copied: "Copied",
+        filterAll: "All",
+        showUnchanged: "Show unchanged",
+        hideUnchanged: "Hide unchanged",
+        statusNew: "New",
+        statusAdded: "Added",
+        statusReduced: "Reduced",
+        statusClosed: "Closed",
+        statusPrice: "Price only",
+        closedSection: "Closed {count} · {value} then",
+        closedSectionSince: " · since {time}",
+        realizedLabel: "Realized",
+        positionsEmpty: "No position data.",
+        compareHighest: "top",
+        compareLowest: "down",
+        compareHighestHint: "Recent High",
+        compareLowestHint: "Recent Low",
+        historyEmpty: "No snapshot history.",
+        historyPrev: "Previous",
+        historyNext: "Next",
+        historyPageInfo: "{current} / {total}",
+        refreshLabel: "New Snapshot",
+        loadingRefreshTitle: "Fetching latest data",
+        settingsButton: "Settings",
+        settingsTitle: "Settings",
+        closeSettings: "Close",
+        themeSystem: "System",
+        defaultViewChanged: "Changes only",
+        defaultViewAll: "All",
+        themeLabel: "Theme",
+        themeClassic: "Light",
+        themeMidnight: "Dark",
+        languageLabel: "Language",
+        languageZh: "Chinese",
+        languageEn: "English",
+        profitColorLabel: "PnL colors",
+        profitColorRed: "Red profit / green loss",
+        profitColorGreen: "Green profit / red loss",
+        defaultViewLabel: "When comparing, show",
+        compare: "Compare",
+        compareBusy: "Comparing...",
+        delete: "Delete",
+        deleteBusy: "Deleting...",
+        currentSnapshot: "Current snapshot",
+        loadingCompareTitle: "Loading history compare",
+        statusLoadingCompare: "Loading history compare...",
+        statusCompareFailed: "History compare failed: {message}",
+        statusCompareFailedDefault: "Default history compare failed: {message}",
+        deleteConfirm: "Delete this snapshot?",
+        deleteConfirmTitle: "Delete this snapshot?",
+        deleteConfirmBody: "The snapshot from {time} (total {value}) and its positions will be permanently deleted. This can't be undone.",
+        cancelAction: "Cancel",
+        deleteAction: "Delete",
+        loadingElapsed: "{seconds}s elapsed",
+        statusDeleting: "Deleting snapshot...",
+        loadingDeleteTitle: "Deleting history snapshot",
+        statusDeleted: "Snapshot deleted",
+        statusDeleteFailed: "Delete failed: {message}",
+        statusLoading: "Loading...",
+        statusLoadFailed: "Load failed: {message}",
+        statusRefreshing: "Fetching latest data...",
+        statusRefreshDone: "Snapshot updated · {positionsCount} positions",
+        statusRefreshFailed: "Update failed: {message}"
+      }
+    };
+
+    function t(key, vars = {}) {
+      const messages = I18N[currentLanguage] || I18N.zh;
+      const template = messages[key] ?? I18N.zh[key] ?? key;
+      return template.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
+    }
+
+    function debugLog(message, payload = null) {
+      if (payload === null || payload === undefined) {
+        console.log(`[dashboard] ${message}`);
+        return;
+      }
+      console.log(`[dashboard] ${message}`, payload);
+    }
+
+    function loadSettings() {
+      const savedTheme = localStorage.getItem(STORAGE_KEYS.theme);
+      const savedProfitColorMode = localStorage.getItem(STORAGE_KEYS.profitColorMode);
+      const savedDefaultCompareView = localStorage.getItem(STORAGE_KEYS.defaultCompareView);
+      const savedLanguage = localStorage.getItem(STORAGE_KEYS.language);
+      if (savedTheme === "system" || savedTheme === "classic" || savedTheme === "midnight") {
+        currentTheme = savedTheme;
+      }
+      if (savedProfitColorMode === "green-profit" || savedProfitColorMode === "red-profit") {
+        profitColorMode = savedProfitColorMode;
+      }
+      if (savedDefaultCompareView === "full" || savedDefaultCompareView === "simplified") {
+        defaultCompareView = savedDefaultCompareView;
+      }
+      if (savedLanguage === "zh" || savedLanguage === "en") {
+        currentLanguage = savedLanguage;
+      }
+      hideUnchangedMarkets = defaultCompareView === "simplified";
+    }
+
+    function persistSettings() {
+      localStorage.setItem(STORAGE_KEYS.theme, currentTheme);
+      localStorage.setItem(STORAGE_KEYS.profitColorMode, profitColorMode);
+      localStorage.setItem(STORAGE_KEYS.defaultCompareView, defaultCompareView);
+      localStorage.setItem(STORAGE_KEYS.language, currentLanguage);
+    }
+
+    function applyTheme() {
+      const theme = currentTheme === "system"
+        ? (systemDarkQuery?.matches ? "midnight" : "classic")
+        : (THEME_NAMES.includes(currentTheme) ? currentTheme : "classic");
+      document.documentElement.dataset.theme = theme;
+      const themeColor = document.querySelector('meta[name="theme-color"]');
+      if (themeColor) {
+        themeColor.content = theme === "midnight" ? "#1a1918" : "#faf9f5";
+      }
+    }
+
+    function applyProfitColorMode() {
+      document.documentElement.style.setProperty(
+        "--green",
+        profitColorMode === "red-profit"
+          ? getComputedStyle(document.documentElement).getPropertyValue("--profit-up").trim()
+          : getComputedStyle(document.documentElement).getPropertyValue("--profit-down").trim()
+      );
+      document.documentElement.style.setProperty(
+        "--red",
+        profitColorMode === "red-profit"
+          ? getComputedStyle(document.documentElement).getPropertyValue("--profit-down").trim()
+          : getComputedStyle(document.documentElement).getPropertyValue("--profit-up").trim()
+      );
+    }
+
+    function syncSettingsUI() {
+      el.settingsModal.classList.toggle("visible", settingsOpen);
+      el.settingsModal.setAttribute("aria-hidden", settingsOpen ? "false" : "true");
+      el.settingsBtn.setAttribute("aria-expanded", settingsOpen ? "true" : "false");
+      el.settingsBtn.classList.toggle("active", settingsOpen);
+      el.settingsPanel.setAttribute("aria-modal", settingsOpen && mobileSheetQuery?.matches ? "true" : "false");
+      document.body.classList.toggle("sheet-open", settingsOpen && Boolean(mobileSheetQuery?.matches));
+      for (const button of el.settingsPanel.querySelectorAll(".settings-option")) {
+        button.setAttribute("aria-pressed", "false");
+      }
+      el.themeSystemBtn.classList.toggle("active", currentTheme === "system");
+      el.themeClassicBtn.classList.toggle("active", currentTheme === "classic");
+      el.themeMidnightBtn.classList.toggle("active", currentTheme === "midnight");
+      el.languageZhBtn.classList.toggle("active", currentLanguage === "zh");
+      el.languageEnBtn.classList.toggle("active", currentLanguage === "en");
+      el.profitColorRedBtn.classList.toggle("active", profitColorMode === "red-profit");
+      el.profitColorGreenBtn.classList.toggle("active", profitColorMode === "green-profit");
+      el.defaultViewSimplifiedBtn.classList.toggle("active", defaultCompareView === "simplified");
+      el.defaultViewFullBtn.classList.toggle("active", defaultCompareView === "full");
+      for (const button of el.settingsPanel.querySelectorAll(".settings-option.active")) {
+        button.setAttribute("aria-pressed", "true");
+      }
+      applyStaticTexts();
+    }
+
+    function applyStaticTexts() {
+      document.title = t("pageTitle");
+      el.heroEyebrow.textContent = t("heroEyebrow");
+      el.heroTitle.textContent = t("heroTitle");
+      el.labelTotalAssets.textContent = t("labelTotalAssets");
+      el.labelUsdc.textContent = t("labelUsdc");
+      el.labelPositionsValue.textContent = t("labelPositionsValue");
+      el.labelComparePnl.textContent = t("labelComparePnl");
+      el.positionsTitle.textContent = t("positionsTitle");
+      el.historyTitle.textContent = t("historyTitle");
+      el.compareHighestBtn.title = t("compareHighestHint");
+      el.compareHighestBtn.setAttribute("aria-label", t("compareHighestHint"));
+      el.compareHighestBtn.textContent = t("compareHighest");
+      el.compareLowestBtn.title = t("compareLowestHint");
+      el.compareLowestBtn.setAttribute("aria-label", t("compareLowestHint"));
+      el.compareLowestBtn.textContent = t("compareLowest");
+      el.thMarket.textContent = t("thMarket");
+      el.thOutcome.textContent = t("thOutcome");
+      el.thSize.textContent = t("thSize");
+      el.thCurrentValue.textContent = t("thCurrentValue");
+      el.thPnl.textContent = t("thPnl");
+      el.thPrice.textContent = t("thPrice");
+      el.walletLabel.textContent = t("walletLabel");
+      el.walletChip.title = t("copyAddress");
+      el.walletChip.setAttribute("aria-label", t("copyAddress"));
+      el.positionsEmpty.textContent = t("positionsEmpty");
+      el.historyEmpty.textContent = t("historyEmpty");
+      el.historyPrevBtn.textContent = t("historyPrev");
+      el.historyNextBtn.textContent = t("historyNext");
+      document.documentElement.lang = currentLanguage === "en" ? "en" : "zh-CN";
+      el.settingsTitle.textContent = t("settingsTitle");
+      el.themeLabel.textContent = t("themeLabel");
+      el.themeClassicBtn.textContent = t("themeClassic");
+      el.themeMidnightBtn.textContent = t("themeMidnight");
+      el.languageLabel.textContent = t("languageLabel");
+      el.languageZhBtn.textContent = t("languageZh");
+      el.languageEnBtn.textContent = t("languageEn");
+      el.profitColorLabel.textContent = t("profitColorLabel");
+      el.settingsCloseBtn.title = t("closeSettings");
+      el.settingsCloseBtn.setAttribute("aria-label", t("closeSettings"));
+      el.themeSystemBtn.textContent = t("themeSystem");
+      el.profitColorRedBtn.innerHTML = '<span class="swatch profit-up">+12</span><span class="swatch profit-down">−12</span>';
+      el.profitColorGreenBtn.innerHTML = '<span class="swatch profit-down">+12</span><span class="swatch profit-up">−12</span>';
+      el.profitColorRedBtn.title = t("profitColorRed");
+      el.profitColorRedBtn.setAttribute("aria-label", t("profitColorRed"));
+      el.profitColorGreenBtn.title = t("profitColorGreen");
+      el.profitColorGreenBtn.setAttribute("aria-label", t("profitColorGreen"));
+      el.defaultViewLabel.textContent = t("defaultViewLabel");
+      el.defaultViewSimplifiedBtn.textContent = t("defaultViewChanged");
+      el.defaultViewFullBtn.textContent = t("defaultViewAll");
+      el.refreshBtn.title = t("refreshLabel");
+      el.refreshBtn.setAttribute("aria-label", t("refreshLabel"));
+      el.settingsBtn.title = t("settingsButton");
+      el.settingsBtn.setAttribute("aria-label", t("settingsButton"));
+      if (lastRenderedCompare) {
+        renderPositions(lastRenderedPositions, lastRenderedCompare);
+      }
+      if (latestComparePayload?.compareSnapshot) {
+        renderPositions(latestComparePayload.positions || [], latestComparePayload.compareSnapshot || null);
+        renderComparePnl(latestComparePayload.compareSnapshot || null);
+      } else if (latestPayload) {
+        renderSnapshot(latestPayload.snapshot, latestPayload.walletAddress);
+        renderPositions(latestPayload.positions || []);
+      }
+      if (latestPayload) {
+        renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+      }
+    }
+
+    function formatMoney(value) {
+      const number = Number(value || 0);
+      return `$${new Intl.NumberFormat("en-US", {
+        maximumFractionDigits: 2
+      }).format(number)}`;
+    }
+
+    function formatSignedMoney(value) {
+      const number = Number(value || 0);
+      const sign = number > 0 ? "+" : number < 0 ? "-" : "";
+      return `${sign}${formatMoney(Math.abs(number))}`;
+    }
+
+    function formatNumber(value) {
+      const number = Number(value || 0);
+      return new Intl.NumberFormat(currentLanguage === "en" ? "en-US" : "zh-CN", {
+        maximumFractionDigits: 4
+      }).format(number);
+    }
+
+    function formatInteger(value) {
+      const number = Number(value || 0);
+      return new Intl.NumberFormat(currentLanguage === "en" ? "en-US" : "zh-CN", {
+        maximumFractionDigits: 0
+      }).format(number);
+    }
+
+    function pnlClass(value) {
+      const number = Number(value || 0);
+      if (number > 0) return "positive";
+      if (number < 0) return "negative";
+      return "";
+    }
+
+    let statusTimer = null;
+
+    // Progress and errors stay visible; pass a ttl for success notes that should clear themselves.
+    function setStatus(text, ttl = 0) {
+      clearTimeout(statusTimer);
+      el.status.textContent = text;
+      el.status.hidden = !text;
+      if (text && ttl) {
+        statusTimer = setTimeout(() => setStatus(""), ttl);
+      }
+    }
+
+    const DIALOG_ICONS = {
+      refresh: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.8"/></svg>',
+      compare: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 6V18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6.5" y="8" width="3" height="8" rx="1" fill="currentColor"/><rect x="14.5" y="6.5" width="3" height="11" rx="1" fill="currentColor" opacity="0.45"/></svg>',
+      delete: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7H20M9 4H15M10 11V17M14 11V17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="7" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>'
+    };
+    let overlayTimer = null;
+
+    function setOverlayState(visible, title = "", kind = "refresh") {
+      el.loadingOverlay.classList.toggle("visible", visible);
+      el.loadingOverlay.setAttribute("aria-hidden", visible ? "false" : "true");
+      clearInterval(overlayTimer);
+      el.loadingElapsed.textContent = "";
+      if (!visible) return;
+      if (title) {
+        el.loadingText.textContent = title;
+      }
+      el.loadingIcon.innerHTML = DIALOG_ICONS[kind] || DIALOG_ICONS.refresh;
+      el.loadingIcon.classList.toggle("danger", kind === "delete");
+      const startedAt = Date.now();
+      overlayTimer = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startedAt) / 1000);
+        el.loadingElapsed.textContent = seconds >= 2 ? t("loadingElapsed", { seconds }) : "";
+      }, 500);
+    }
+
+    let confirmResolver = null;
+    let confirmReturnFocus = null;
+
+    function confirmDialog({ title, body, confirmLabel, cancelLabel }) {
+      if (confirmResolver) confirmResolver(false);
+      confirmReturnFocus = document.activeElement;
+      el.confirmTitle.textContent = title;
+      el.confirmBody.textContent = body;
+      el.confirmOkBtn.textContent = confirmLabel;
+      el.confirmCancelBtn.textContent = cancelLabel;
+      el.confirmModal.classList.add("visible");
+      el.confirmModal.setAttribute("aria-hidden", "false");
+      el.confirmCancelBtn.focus({ preventScroll: true });
+      return new Promise((resolve) => {
+        confirmResolver = resolve;
+      });
+    }
+
+    function closeConfirm(result) {
+      if (!confirmResolver) return;
+      const resolve = confirmResolver;
+      confirmResolver = null;
+      el.confirmModal.classList.remove("visible");
+      el.confirmModal.setAttribute("aria-hidden", "true");
+      if (confirmReturnFocus && document.contains(confirmReturnFocus)) {
+        confirmReturnFocus.focus({ preventScroll: true });
+      }
+      resolve(result);
+    }
+
+    function setRefreshingState(refreshing) {
+      isRefreshing = refreshing;
+      el.refreshBtn.disabled = refreshing;
+      el.refreshBtn.classList.toggle("loading", refreshing);
+      el.refreshSpinner.classList.toggle("visible", refreshing);
+      el.refreshBtn.title = t("refreshLabel");
+      el.refreshBtn.setAttribute("aria-label", t("refreshLabel"));
+      setOverlayState(
+        refreshing,
+        t("loadingRefreshTitle"),
+        "refresh"
+      );
+    }
+
+    function setHistoryActionState(action = null, snapshotId = null) {
+      busyAction = action;
+      busySnapshotId = snapshotId;
+      syncHistoryToolbar();
+      if (latestPayload) {
+        renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+      }
+    }
+
+    function getRecentHistoryCandidates(limit = 10) {
+      if (!Array.isArray(latestPayload?.history)) return [];
+      const currentSnapshotId = Number(latestPayload?.snapshot?.id || 0);
+      return latestPayload.history
+        .filter((item) => Number(item.id) !== currentSnapshotId)
+        .slice(0, limit);
+    }
+
+    function getHistoryTotalAssetValue(item) {
+      return Number(item?.total_assets ?? item?.positions_current_value ?? 0);
+    }
+
+    function getExtremeHistorySnapshot(direction) {
+      const candidates = getRecentHistoryCandidates(10);
+      if (!candidates.length) return null;
+      return candidates.reduce((best, item) => {
+        if (!best) return item;
+        const currentValue = getHistoryTotalAssetValue(item);
+        const bestValue = getHistoryTotalAssetValue(best);
+        if (direction === "max") {
+          return currentValue > bestValue ? item : best;
+        }
+        return currentValue < bestValue ? item : best;
+      }, null);
+    }
+
+    function syncHistoryToolbar() {
+      const hasCandidates = getRecentHistoryCandidates(10).length > 0;
+      const disabled = isRefreshing || busyAction === "delete" || busyAction === "compare";
+      el.compareHighestBtn.disabled = disabled || !hasCandidates;
+      el.compareLowestBtn.disabled = disabled || !hasCandidates;
+    }
+
+
+    function formatSnapshotTime(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return new Intl.DateTimeFormat(currentLanguage === "en" ? "en-US" : "zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function formatShortTime(value) {
+      const date = new Date(value);
+      if (!value || Number.isNaN(date.getTime())) return "-";
+      return new Intl.DateTimeFormat(currentLanguage === "en" ? "en-US" : "zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function formatSnapshotTimeCompact(value) {
+      return formatSnapshotTime(value);
+    }
+
+    function formatSignedNumber(value, fractionDigits = 2) {
+      const number = Number(value || 0);
+      const sign = number > 0 ? "+" : "";
+      return `${sign}${new Intl.NumberFormat("en-US", {
+        maximumFractionDigits: fractionDigits,
+        minimumFractionDigits: 0
+      }).format(number)}`;
+    }
+
+    function buildMarketUrl(row) {
+      if (!row || !row.event_slug || !row.slug) return "";
+      return `https://polymarket.com/event/${row.event_slug}/${row.slug}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+    }
+
+    function shortAddress(address) {
+      const value = String(address || "");
+      return value.length > 12 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value;
+    }
+
+    function formatCents(price) {
+      const number = Number(price);
+      if (!Number.isFinite(number)) return "-";
+      const cents = Math.round(number * 1000) / 10;
+      return `${cents}¢`;
+    }
+
+    function formatSignedPercent(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "";
+      const sign = number > 0 ? "+" : number < 0 ? "-" : "";
+      return `${sign}${Math.abs(number).toFixed(1)}%`;
+    }
+
+    function formatSettlement(endDate) {
+      if (!endDate) return "";
+      const end = Date.parse(`${String(endDate).slice(0, 10)}T00:00:00Z`);
+      if (Number.isNaN(end)) return "";
+      const now = new Date();
+      const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+      const days = Math.round((end - today) / 86400000);
+      if (days > 0) return t("settleInDays", { days });
+      if (days === 0) return t("settleToday");
+      return t("settleEnded");
+    }
+
+    function humanizeSlug(slug) {
+      const text = String(slug || "")
+        .replace(/-(\d+)$/, (match, digits) => (/^(19|20)\d\d$/.test(digits) ? match : ""))
+        .split("-").filter(Boolean).join(" ");
+      return text ? text.charAt(0).toUpperCase() + text.slice(1) : "-";
+    }
+
+    function getPusdResult(payload) {
+      const result = payload?.live?.usdcResult;
+      return result && typeof result === "object" ? result : null;
+    }
+
+    function isPusdUnavailable(payload) {
+      return getPusdResult(payload)?.result === false;
+    }
+
+    function renderWalletChip(walletAddress) {
+      el.walletRow.hidden = !walletAddress;
+      el.walletChip.dataset.address = walletAddress || "";
+      el.walletChip.classList.remove("copied");
+      el.walletChipText.textContent = shortAddress(walletAddress);
+    }
+
+    async function copyWalletAddress() {
+      const address = el.walletChip.dataset.address;
+      if (!address) return;
+      try {
+        await navigator.clipboard.writeText(address);
+      } catch (error) {
+        const input = document.createElement("textarea");
+        input.value = address;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+      }
+      el.walletChip.classList.add("copied");
+      el.walletChipText.textContent = t("copied");
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => {
+        el.walletChip.classList.remove("copied");
+        el.walletChipText.textContent = shortAddress(address);
+      }, 1400);
+    }
+
+    function getAssetSeries() {
+      const history = Array.isArray(latestPayload?.history) ? [...latestPayload.history] : [];
+      const points = history
+        .slice()
+        .sort((a, b) => String(a.snapshot_at).localeCompare(String(b.snapshot_at)))
+        .map((item) => Number(item.total_assets))
+        .filter((value) => Number.isFinite(value));
+      const snapshot = latestPayload?.snapshot;
+      const inHistory = snapshot?.id && history.some((item) => Number(item.id) === Number(snapshot.id));
+      if (snapshot && !inHistory && Number.isFinite(Number(snapshot.total_assets))) {
+        points.push(Number(snapshot.total_assets));
+      }
+      return points;
+    }
+
+    function renderSparkline() {
+      const points = getAssetSeries();
+      if (points.length < 2) {
+        el.assetsSpark.innerHTML = "";
+        el.assetsSpark.classList.remove("visible");
+        return;
+      }
+      const width = 200;
+      const height = 36;
+      const pad = 3;
+      const min = Math.min(...points);
+      const max = Math.max(...points);
+      const range = max - min || 1;
+      const coords = points.map((value, index) => [
+        (index / (points.length - 1)) * width,
+        pad + (1 - (value - min) / range) * (height - pad * 2)
+      ]);
+      const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+      const area = `0,${height} ${line} ${width},${height}`;
+      el.assetsSpark.innerHTML = `
+        <polygon class="spark-area" points="${area}"></polygon>
+        <polyline class="spark-line" points="${line}" vector-effect="non-scaling-stroke"></polyline>
+      `;
+      el.assetsSpark.classList.add("visible");
+    }
+
+    function renderComparePnl(compareSnapshot = null) {
+      if (!latestPayload?.snapshot || !compareSnapshot) {
+        el.totalPnl.textContent = "-";
+        el.totalPnl.className = "value";
+        el.totalPnlNote.textContent = "";
+        return;
+      }
+
+      const previous = Number(compareSnapshot.total_assets || 0);
+      const diff = Number(latestPayload.snapshot.total_assets || 0) - previous;
+      el.totalPnl.textContent = formatSignedMoney(diff);
+      el.totalPnl.className = `value ${pnlClass(diff)}`.trim();
+      const pct = previous ? formatSignedPercent((diff / previous) * 100) : "";
+      const note = t("compareNote", {
+        pct: pct || "-",
+        time: formatShortTime(compareSnapshot.snapshot_at)
+      });
+      el.totalPnlNote.textContent = isPusdUnavailable(latestPayload)
+        ? `${note} · ${t("totalExcludesPusd")}`
+        : note;
+    }
+
+    function renderSnapshot(snapshot, walletAddress) {
+      const pusdUnavailable = Boolean(snapshot) && isPusdUnavailable(latestPayload);
+      el.totalAssets.textContent = snapshot ? formatMoney(snapshot.total_assets) : "-";
+      el.totalAssetsNote.textContent = pusdUnavailable ? t("totalExcludesPusd") : "";
+      el.usdcBalance.textContent = snapshot && !pusdUnavailable ? formatMoney(snapshot.usdc_balance) : "—";
+      el.usdcCard.classList.toggle("is-unavailable", pusdUnavailable);
+      el.usdcNote.textContent = pusdUnavailable ? t("pusdFailed") : "";
+      el.usdcNote.title = pusdUnavailable ? String(getPusdResult(latestPayload)?.error || "") : "";
+      el.positionsValue.textContent = snapshot ? formatMoney(snapshot.positions_current_value) : "-";
+      const activeCount = Array.isArray(latestPayload?.positions) ? latestPayload.positions.length : 0;
+      el.positionsValueNote.textContent = snapshot ? t("positionsCountNote", { count: activeCount }) : "";
+      renderWalletChip(walletAddress);
+      renderSparkline();
+      renderComparePnl(null);
+    }
+
+    const STATUS_LABEL_KEYS = {
+      new: "statusNew",
+      added: "statusAdded",
+      reduced: "statusReduced",
+      closed: "statusClosed",
+      price: "statusPrice"
+    };
+
+    function getChangeStatus(row, compareSnapshot) {
+      if (!compareSnapshot) return null;
+      if (row.change_status) return row.change_status;
+      const diffSize = Number(row.diff_size || 0);
+      const diffValue = Number(row.diff_current_value || 0);
+      if (diffSize !== 0) return diffSize > 0 ? "added" : "reduced";
+      return Math.abs(diffValue) >= 1 ? "price" : "unchanged";
+    }
+
+    function renderChangeTag(status) {
+      if (!status || status === "price" || status === "unchanged") return "";
+      const arrow = status === "added"
+        ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : status === "reduced"
+          ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+          : "";
+      return `<span class="change-tag ${status}">${arrow}${escapeHtml(t(STATUS_LABEL_KEYS[status]))}</span>`;
+    }
+
+    function renderChangeFilters(counts, visible, unchangedCount = 0) {
+      el.changeFilters.hidden = !visible;
+      if (!visible) {
+        el.changeFilters.innerHTML = "";
+        return;
+      }
+      el.changeFilters.innerHTML = "";
+      for (const key of CHANGE_FILTERS) {
+        const count = key === "all" ? counts.all : counts[key] || 0;
+        if (key !== "all" && count === 0 && changeFilter !== key) continue;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `change-filter${changeFilter === key ? " active" : ""}`;
+        button.setAttribute("aria-pressed", changeFilter === key ? "true" : "false");
+        button.innerHTML = `${escapeHtml(key === "all" ? t("filterAll") : t(STATUS_LABEL_KEYS[key]))}<span class="change-filter-count">${count}</span>`;
+        button.addEventListener("click", () => {
+          changeFilter = changeFilter === key && key !== "all" ? "all" : key;
+          renderPositions(lastRenderedPositions, lastRenderedCompare);
+        });
+        el.changeFilters.appendChild(button);
+      }
+      if (unchangedCount > 0) {
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "change-filter unchanged-toggle";
+        toggle.setAttribute("aria-pressed", hideUnchangedMarkets ? "false" : "true");
+        toggle.innerHTML = hideUnchangedMarkets
+          ? `${escapeHtml(t("showUnchanged"))}<span class="change-filter-count">${unchangedCount}</span>`
+          : escapeHtml(t("hideUnchanged"));
+        toggle.addEventListener("click", () => {
+          hideUnchangedMarkets = !hideUnchangedMarkets;
+          renderPositions(lastRenderedPositions, lastRenderedCompare);
+        });
+        el.changeFilters.appendChild(toggle);
+      }
+    }
+
+    function renderDelta(value, formatter) {
+      return `<span class="delta ${pnlClass(value)}">${formatter(value)}</span>`;
+    }
+
+    function renderMarketIcon(row) {
+      const letter = escapeHtml(String(row.title || "?").trim().charAt(0).toUpperCase() || "?");
+      const icon = typeof row.icon === "string" && /^https:\/\//.test(row.icon) ? row.icon : "";
+      const image = icon
+        ? `<img src="${escapeHtml(icon)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+        : "";
+      return `<span class="market-icon" aria-hidden="true"><span>${letter}</span>${image}</span>`;
+    }
+
+    function buildPositionRow(row, compareSnapshot, isChild) {
+      const status = getChangeStatus(row, compareSnapshot);
+      const isClosed = status === "closed";
+      const marketUrl = buildMarketUrl(row);
+      const title = escapeHtml(row.title || "-");
+      const marketTitle = marketUrl
+        ? `<a class="market-link" href="${escapeHtml(marketUrl)}" target="_blank" rel="noreferrer">${title}</a>`
+        : title;
+      const sizeDeltaValue = Number(row.diff_size || 0);
+      const valueDeltaValue = Number(row.diff_current_value || 0);
+      const showDeltas = compareSnapshot && status !== "new";
+      const sizeDelta = showDeltas && Math.round(sizeDeltaValue) !== 0
+        ? renderDelta(Math.round(sizeDeltaValue), (value) => formatSignedNumber(value, 0))
+        : "";
+      const valueDelta = showDeltas && valueDeltaValue !== 0
+        ? renderDelta(valueDeltaValue, formatSignedMoney)
+        : "";
+      const settlement = isClosed ? "" : formatSettlement(row.end_date);
+      const percent = isClosed ? "" : formatSignedPercent(row.percent_pnl);
+      const hasRealized = isClosed && row.realized_pnl !== null && row.realized_pnl !== undefined;
+      const pnlCell = isClosed
+        ? (hasRealized
+            ? `<div class="${pnlClass(row.realized_pnl)}">${formatSignedMoney(row.realized_pnl)}</div><div class="pnl-pct">${escapeHtml(t("realizedLabel"))}</div>`
+            : `<div class="muted-dash">—</div>`)
+        : `<div class="${pnlClass(row.cash_pnl)}">${formatSignedMoney(row.cash_pnl)}</div>
+          ${percent ? `<div class="pnl-pct ${pnlClass(row.percent_pnl)}">${percent}</div>` : ""}`;
+      const priceCell = isClosed
+        ? `<span class="muted-dash">—</span>`
+        : `<span class="price-avg">${formatCents(row.avg_price)}</span><span class="price-arrow">→</span><span class="price-now">${formatCents(row.cur_price)}</span>`;
+      const tr = document.createElement("tr");
+      tr.className = ["position-row", isChild ? "group-child" : "", isClosed ? "is-closed" : ""].filter(Boolean).join(" ");
+      tr.innerHTML = `
+        <td class="cell-market">
+          <div class="market-cell">
+            ${renderMarketIcon(row)}
+            <div class="market-text">
+              <div class="market-title">${marketTitle}${renderChangeTag(status)}</div>
+              ${settlement ? `<div class="market-meta">${escapeHtml(settlement)}</div>` : ""}
+            </div>
+          </div>
+        </td>
+        <td class="cell-side"><span class="outcome-pill">${escapeHtml(row.outcome || "-")}</span></td>
+        <td class="cell-size" data-label="${escapeHtml(t("thSize"))}">${formatInteger(row.size)}${sizeDelta}</td>
+        <td class="cell-price" data-label="${escapeHtml(t("thPrice"))}">${priceCell}</td>
+        <td class="cell-value" data-label="${escapeHtml(t("thCurrentValue"))}">${formatMoney(row.current_value)}${valueDelta}</td>
+        <td class="cell-pnl" data-label="${escapeHtml(t("thPnl"))}">${pnlCell}</td>
+      `;
+      return tr;
+    }
+
+    // Status shared by every market in the group, if any.
+    function groupUniformStatus(group, compareSnapshot) {
+      const statuses = new Set(group.rows.map((row) => getChangeStatus(row, compareSnapshot)));
+      return statuses.size === 1 ? [...statuses][0] : null;
+    }
+
+    function groupMeta(group, compareSnapshot) {
+      const parts = [t("groupMarkets", { count: group.rows.length })];
+      if (groupUniformStatus(group, compareSnapshot)) return parts[0];
+      for (const status of ["new", "added", "reduced"]) {
+        const count = group.rows.filter((row) => getChangeStatus(row, compareSnapshot) === status).length;
+        if (count) parts.push(`${count} ${t(STATUS_LABEL_KEYS[status])}`);
+      }
+      return parts.join(" · ");
+    }
+
+    function buildGroupRow(group, compareSnapshot) {
+      const expanded = expandedGroups.has(group.key);
+      const totalValue = group.rows.reduce((sum, row) => sum + Number(row.current_value || 0), 0);
+      const totalPnl = group.rows.reduce((sum, row) => sum + Number(row.cash_pnl || 0), 0);
+      const totalCost = group.rows.reduce((sum, row) => sum + Number(row.initial_value || 0), 0);
+      const totalDelta = group.rows.reduce((sum, row) => sum + Number(row.diff_current_value || 0), 0);
+      const roundedDelta = Math.round(totalDelta * 100) / 100;
+      const percent = totalCost ? formatSignedPercent((totalPnl / totalCost) * 100) : "";
+      const valueDelta = compareSnapshot && roundedDelta !== 0 ? renderDelta(roundedDelta, formatSignedMoney) : "";
+      const tr = document.createElement("tr");
+      tr.className = `group-row${expanded ? " expanded" : ""}`;
+      tr.innerHTML = `
+        <td class="cell-market">
+          <button class="group-toggle" type="button" aria-expanded="${expanded}">
+            <svg class="group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${renderMarketIcon(group.rows[0])}
+            <span class="market-text">
+              <span class="market-title">${escapeHtml(humanizeSlug(group.key))}${renderChangeTag(groupUniformStatus(group, compareSnapshot))}</span>
+              <span class="market-meta">${escapeHtml(groupMeta(group, compareSnapshot))}</span>
+            </span>
+          </button>
+        </td>
+        <td class="cell-side"></td>
+        <td class="cell-size"></td>
+        <td class="cell-price"></td>
+        <td class="cell-value" data-label="${escapeHtml(t("thCurrentValue"))}">${formatMoney(totalValue)}${valueDelta}</td>
+        <td class="cell-pnl" data-label="${escapeHtml(t("thPnl"))}">
+          <div class="${pnlClass(totalPnl)}">${formatSignedMoney(totalPnl)}</div>
+          ${percent ? `<div class="pnl-pct ${pnlClass(totalPnl)}">${percent}</div>` : ""}
+        </td>
+      `;
+      tr.querySelector(".group-toggle").addEventListener("click", () => {
+        if (expandedGroups.has(group.key)) {
+          expandedGroups.delete(group.key);
+        } else {
+          expandedGroups.add(group.key);
+        }
+        renderPositions(lastRenderedPositions, lastRenderedCompare);
+      });
+      return tr;
+    }
+
+    function renderPositions(positions, compareSnapshot = null) {
+      lastRenderedPositions = Array.isArray(positions) ? positions : [];
+      lastRenderedCompare = compareSnapshot;
+      el.positionsBody.innerHTML = "";
+      const visibleRows = lastRenderedPositions.filter((row) => {
+        if (!compareSnapshot) return true;
+        const status = getChangeStatus(row, compareSnapshot);
+        return !(hideUnchangedMarkets && status === "unchanged");
+      });
+      const unchangedCount = compareSnapshot
+        ? lastRenderedPositions.filter((row) => getChangeStatus(row, compareSnapshot) === "unchanged").length
+        : 0;
+      const counts = { all: visibleRows.length };
+      for (const row of visibleRows) {
+        const status = getChangeStatus(row, compareSnapshot);
+        counts[status] = (counts[status] || 0) + 1;
+      }
+      if (changeFilter !== "all" && !counts[changeFilter]) {
+        changeFilter = "all";
+      }
+      renderChangeFilters(counts, Boolean(compareSnapshot), unchangedCount);
+      const filteredPositions = changeFilter === "all"
+        ? visibleRows
+        : visibleRows.filter((row) => getChangeStatus(row, compareSnapshot) === changeFilter);
+      const hasPositions = filteredPositions.length > 0;
+      el.positionsEmpty.hidden = hasPositions;
+
+      if (!hasPositions) return;
+
+      const openRows = filteredPositions.filter((row) => getChangeStatus(row, compareSnapshot) !== "closed");
+      const closedRows = filteredPositions
+        .filter((row) => getChangeStatus(row, compareSnapshot) === "closed")
+        .sort((a, b) => Number(b.previous_current_value || 0) - Number(a.previous_current_value || 0));
+
+      const groupsByKey = new Map();
+      for (const row of openRows) {
+        const key = row.event_slug || `${row.condition_id}::${row.outcome}`;
+        if (!groupsByKey.has(key)) {
+          groupsByKey.set(key, { key, rows: [] });
+        }
+        groupsByKey.get(key).rows.push(row);
+      }
+      const groups = [...groupsByKey.values()].map((group) => {
+        group.rows.sort((a, b) => Number(b.current_value || 0) - Number(a.current_value || 0));
+        group.total = group.rows.reduce((sum, row) => sum + Number(row.current_value || 0), 0);
+        return group;
+      });
+      groups.sort((a, b) => b.total - a.total);
+
+      for (const group of groups) {
+        if (group.rows.length === 1) {
+          el.positionsBody.appendChild(buildPositionRow(group.rows[0], compareSnapshot, false));
+          continue;
+        }
+        el.positionsBody.appendChild(buildGroupRow(group, compareSnapshot));
+        if (expandedGroups.has(group.key)) {
+          for (const row of group.rows) {
+            el.positionsBody.appendChild(buildPositionRow(row, compareSnapshot, true));
+          }
+        }
+      }
+
+      if (closedRows.length) {
+        const closedValue = closedRows.reduce((sum, row) => sum + Number(row.previous_current_value || 0), 0);
+        const header = document.createElement("tr");
+        header.className = "section-row";
+        const closedSinceAt = lastRenderedClosedSince?.snapshot_at || compareSnapshot?.snapshot_at;
+        let closedLabel = t("closedSection", { count: closedRows.length, value: formatMoney(closedValue) });
+        if (closedSinceAt && closedSinceAt !== compareSnapshot?.snapshot_at) {
+          closedLabel += t("closedSectionSince", { time: formatShortTime(closedSinceAt) });
+        }
+        header.innerHTML = `<td colspan="6">${escapeHtml(closedLabel)}</td>`;
+        el.positionsBody.appendChild(header);
+        for (const row of closedRows) {
+          el.positionsBody.appendChild(buildPositionRow(row, compareSnapshot, false));
+        }
+      }
+    }
+
+    function rerenderData() {
+      if (!latestPayload) return;
+      renderSnapshot(latestPayload.snapshot, latestPayload.walletAddress);
+      if (latestComparePayload?.compareSnapshot) {
+        renderPositions(latestComparePayload.positions || [], latestComparePayload.compareSnapshot);
+        renderComparePnl(latestComparePayload.compareSnapshot);
+      } else {
+        renderPositions(latestPayload.positions || []);
+      }
+      renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+    }
+
+    function renderHistory(history, currentSnapshotId) {
+      el.historyList.innerHTML = "";
+      const hasHistory = Array.isArray(history) && history.length > 0;
+      el.historyEmpty.hidden = hasHistory;
+      el.historyPagination.hidden = true;
+      syncHistoryToolbar();
+
+      if (!hasHistory) return;
+
+      const totalPages = Math.max(1, Math.ceil(history.length / HISTORY_PAGE_SIZE));
+      historyPage = Math.min(Math.max(historyPage, 1), totalPages);
+      const startIndex = (historyPage - 1) * HISTORY_PAGE_SIZE;
+      const pageItems = history.slice(startIndex, startIndex + HISTORY_PAGE_SIZE);
+
+      el.historyPagination.hidden = totalPages <= 1;
+      el.historyPrevBtn.disabled = historyPage <= 1;
+      el.historyNextBtn.disabled = historyPage >= totalPages;
+      el.historyPageInfo.textContent = t("historyPageInfo", {
+        current: historyPage,
+        total: totalPages
+      });
+
+      for (const item of pageItems) {
+        const isCurrent = Number(item.id) === Number(currentSnapshotId);
+        const isActive = Number(item.id) === Number(activeCompareSnapshotId);
+        const card = document.createElement("div");
+        card.className = `history-item${isActive ? " active" : ""}${isCurrent ? " current" : ""}`;
+        card.innerHTML = `
+          <div class="history-row">
+            <div class="history-summary">
+              <div class="history-time">${formatSnapshotTime(item.snapshot_at)}</div>
+              <div class="history-main">${formatMoney(item.total_assets)}</div>
+            </div>
+            ${isCurrent ? "" : `
+            <div class="history-actions">
+              <button class="history-action compare" type="button">${t("compare")}</button>
+              <button class="history-action delete" type="button">${t("delete")}</button>
+            </div>
+            `}
+          </div>
+        `;
+
+        if (isCurrent) {
+          card.title = t("currentSnapshot");
+        } else {
+          const compareButton = card.querySelector(".history-action.compare");
+          const deleteButton = card.querySelector(".history-action.delete");
+          const isBusyCompare = busyAction === "compare" && Number(busySnapshotId) === Number(item.id);
+          const isBusyDelete = busyAction === "delete" && Number(busySnapshotId) === Number(item.id);
+          compareButton.disabled = isBusyCompare || busyAction === "delete";
+          deleteButton.disabled = isBusyDelete || busyAction === "compare";
+          compareButton.title = t("compare");
+          compareButton.setAttribute("aria-label", t("compare"));
+          deleteButton.title = t("delete");
+          deleteButton.setAttribute("aria-label", t("delete"));
+          compareButton.classList.toggle("busy", isBusyCompare);
+          deleteButton.classList.toggle("busy", isBusyDelete);
+          compareButton.innerHTML = isBusyCompare
+            ? t("compareBusy")
+            : `
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 6V18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <rect x="6.5" y="8" width="3" height="8" rx="1" fill="currentColor" opacity="0.9"/>
+                <rect x="14.5" y="6.5" width="3" height="11" rx="1" fill="currentColor" opacity="0.45"/>
+              </svg>
+            `;
+          deleteButton.innerHTML = isBusyDelete
+            ? t("deleteBusy")
+            : `
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 7H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M9 4H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <rect x="6" y="7" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M10 11V17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M14 11V17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            `;
+          compareButton.addEventListener("click", () => loadCompare(item.id));
+          deleteButton.addEventListener("click", () => deleteSnapshot(item.id));
+        }
+        el.historyList.appendChild(card);
+      }
+    }
+
+
+
+    async function loadCompare(snapshotId, options = {}) {
+      if (!latestPayload) return;
+      const { silent = false } = options;
+
+      activeCompareSnapshotId = snapshotId;
+      setHistoryActionState("compare", snapshotId);
+      if (!silent) {
+        setOverlayState(
+          true,
+          t("loadingCompareTitle"),
+          "compare"
+        );
+        setStatus(t("statusLoadingCompare"));
+      }
+      try {
+        const response = await fetch(`/api/compare?snapshot_id=${encodeURIComponent(snapshotId)}`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Compare request failed");
+        }
+        latestComparePayload = data;
+        lastRenderedClosedSince = data.closedSince || null;
+        changeFilter = "all";
+        hideUnchangedMarkets = defaultCompareView === "simplified";
+        renderPositions(data.positions || [], data.compareSnapshot || null);
+        renderComparePnl(data.compareSnapshot || null);
+        renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+        setStatus("");
+      } catch (error) {
+        setStatus(
+          silent
+            ? t("statusCompareFailedDefault", { message: error.message })
+            : t("statusCompareFailed", { message: error.message })
+        );
+      } finally {
+        setHistoryActionState(null, null);
+        if (!silent) {
+          setOverlayState(false);
+        }
+      }
+    }
+
+    async function deleteSnapshot(snapshotId) {
+      const target = (latestPayload?.history || []).find((item) => Number(item.id) === Number(snapshotId));
+      const confirmed = await confirmDialog({
+        title: t("deleteConfirmTitle"),
+        body: target
+          ? t("deleteConfirmBody", { time: formatSnapshotTime(target.snapshot_at), value: formatMoney(target.total_assets) })
+          : t("deleteConfirm", { snapshotId }),
+        confirmLabel: t("deleteAction"),
+        cancelLabel: t("cancelAction")
+      });
+      if (!confirmed) {
+        return;
+      }
+
+      setStatus(t("statusDeleting"));
+      setHistoryActionState("delete", snapshotId);
+      setOverlayState(
+        true,
+        t("loadingDeleteTitle"),
+        "delete"
+      );
+      debugLog("deleteSnapshot:start", { snapshotId });
+      try {
+        const response = await fetch(`/api/delete-snapshot?snapshot_id=${encodeURIComponent(snapshotId)}`);
+        const data = await response.json();
+        debugLog("deleteSnapshot:response", {
+          ok: response.ok,
+          status: response.status,
+          deletedSnapshotId: data?.deletedSnapshotId,
+          snapshotId: data?.snapshot?.id
+        });
+        if (!response.ok) {
+          throw new Error(data.error || "Delete snapshot request failed");
+        }
+
+        latestPayload = data;
+        historyPage = 1;
+        activeCompareSnapshotId = null;
+        latestComparePayload = null;
+        hideUnchangedMarkets = defaultCompareView === "simplified";
+        renderSnapshot(data.snapshot, data.walletAddress);
+        renderPositions(data.positions || []);
+        renderComparePnl(null);
+        renderHistory(data.history || [], data.snapshot?.id);
+        setStatus(t("statusDeleted"), 4000);
+      } catch (error) {
+        debugLog("deleteSnapshot:error", { snapshotId, message: error.message });
+        setStatus(t("statusDeleteFailed", { message: error.message }));
+      } finally {
+        setHistoryActionState(null, null);
+        setOverlayState(false);
+      }
+    }
+
+    async function loadDashboard(options = {}) {
+      const { silent = false } = options;
+      if (!silent) {
+        setStatus(t("statusLoading"));
+      }
+      try {
+        debugLog("loadDashboard:start");
+        const response = await fetch("/api/dashboard");
+        const data = await response.json();
+        debugLog("loadDashboard:response", {
+          ok: response.ok,
+          status: response.status,
+          snapshotId: data?.snapshot?.id,
+          historyCount: data?.history?.length
+        });
+
+        if (!response.ok) {
+          throw new Error(data.error || "Dashboard request failed");
+        }
+
+        latestPayload = data;
+        historyPage = 1;
+        activeCompareSnapshotId = null;
+        latestComparePayload = null;
+        hideUnchangedMarkets = defaultCompareView === "simplified";
+        renderSnapshot(data.snapshot, data.walletAddress);
+        renderPositions(data.positions || []);
+        renderComparePnl(null);
+        renderHistory(data.history || [], data.snapshot?.id);
+        setStatus("");
+        const latestHistorySnapshotId = data.history?.[0]?.id;
+        if (latestHistorySnapshotId) {
+          await loadCompare(latestHistorySnapshotId, { silent: true });
+        }
+      } catch (error) {
+        debugLog("loadDashboard:error", { message: error.message });
+        latestPayload = null;
+        historyPage = 1;
+        activeCompareSnapshotId = null;
+        latestComparePayload = null;
+        hideUnchangedMarkets = defaultCompareView === "simplified";
+        renderSnapshot(null, "");
+        renderPositions([]);
+        renderHistory([], null);
+        setStatus(t("statusLoadFailed", { message: error.message }));
+      }
+    }
+
+    async function refreshData() {
+      if (isRefreshing) return;
+
+      setRefreshingState(true);
+      setStatus(t("statusRefreshing"));
+      debugLog("refreshData:start");
+      try {
+        const response = await fetch("/api/refresh");
+        const data = await response.json();
+        debugLog("refreshData:response", {
+          ok: response.ok,
+          status: response.status,
+          refresh: data?.refresh,
+          snapshotId: data?.snapshot?.id
+        });
+        if (!response.ok) {
+          throw new Error(data.error || "Refresh request failed");
+        }
+
+        latestPayload = data;
+        historyPage = 1;
+        activeCompareSnapshotId = null;
+        latestComparePayload = null;
+        hideUnchangedMarkets = defaultCompareView === "simplified";
+        renderSnapshot(data.snapshot, data.walletAddress);
+        renderPositions(data.positions || []);
+        renderComparePnl(null);
+        renderHistory(data.history || [], data.snapshot?.id);
+        setStatus(t("statusRefreshDone", { positionsCount: data.refresh?.positionsCount || 0 }), 4000);
+      } catch (error) {
+        debugLog("refreshData:error", { message: error.message });
+        setStatus(t("statusRefreshFailed", { message: error.message }));
+        await loadDashboard({ silent: true });
+      } finally {
+        debugLog("refreshData:done");
+        setRefreshingState(false);
+      }
+    }
+
+    el.refreshBtn.addEventListener("click", refreshData);
+    el.compareHighestBtn.addEventListener("click", () => {
+      const snapshot = getExtremeHistorySnapshot("max");
+      if (!snapshot) return;
+      loadCompare(snapshot.id);
+    });
+    el.compareLowestBtn.addEventListener("click", () => {
+      const snapshot = getExtremeHistorySnapshot("min");
+      if (!snapshot) return;
+      loadCompare(snapshot.id);
+    });
+    function openSettings() {
+      settingsOpen = true;
+      syncSettingsUI();
+      (el.settingsPanel.querySelector(".settings-option.active") || el.settingsPanel).focus({ preventScroll: true });
+    }
+
+    function closeSettings(options = {}) {
+      if (!settingsOpen) return;
+      settingsOpen = false;
+      syncSettingsUI();
+      if (options.restoreFocus) {
+        el.settingsBtn.focus();
+      }
+    }
+
+    el.settingsBtn.addEventListener("click", () => {
+      if (settingsOpen) {
+        closeSettings();
+      } else {
+        openSettings();
+      }
+    });
+    el.settingsCloseBtn.addEventListener("click", () => closeSettings({ restoreFocus: true }));
+    el.settingsModal.addEventListener("click", (event) => {
+      if (event.target === el.settingsModal) {
+        closeSettings({ restoreFocus: true });
+      }
+    });
+    el.confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
+    el.confirmOkBtn.addEventListener("click", () => closeConfirm(true));
+    el.confirmModal.addEventListener("click", (event) => {
+      if (event.target === el.confirmModal) closeConfirm(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (confirmResolver) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeConfirm(false);
+        } else if (event.key === "Tab") {
+          event.preventDefault();
+          (document.activeElement === el.confirmCancelBtn ? el.confirmOkBtn : el.confirmCancelBtn).focus();
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        if (settingsOpen) {
+          event.preventDefault();
+          closeSettings({ restoreFocus: true });
+        }
+        return;
+      }
+      if (event.key === "Tab" && settingsOpen && mobileSheetQuery?.matches) {
+        const focusable = [...el.settingsPanel.querySelectorAll("button:not([disabled])")].filter((button) => button.offsetParent !== null);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    });
+    mobileSheetQuery?.addEventListener?.("change", () => {
+      if (settingsOpen) syncSettingsUI();
+    });
+    systemDarkQuery?.addEventListener?.("change", () => {
+      if (currentTheme !== "system") return;
+      applyTheme();
+      applyProfitColorMode();
+      rerenderData();
+    });
+    el.themeSystemBtn.addEventListener("click", () => {
+      currentTheme = "system";
+      persistSettings();
+      applyTheme();
+      applyProfitColorMode();
+      syncSettingsUI();
+    });
+    el.themeClassicBtn.addEventListener("click", () => {
+      currentTheme = "classic";
+      persistSettings();
+      applyTheme();
+      applyProfitColorMode();
+      syncSettingsUI();
+    });
+    el.themeMidnightBtn.addEventListener("click", () => {
+      currentTheme = "midnight";
+      persistSettings();
+      applyTheme();
+      applyProfitColorMode();
+      syncSettingsUI();
+    });
+    el.languageZhBtn.addEventListener("click", () => {
+      currentLanguage = "zh";
+      persistSettings();
+      syncSettingsUI();
+      rerenderData();
+    });
+    el.languageEnBtn.addEventListener("click", () => {
+      currentLanguage = "en";
+      persistSettings();
+      syncSettingsUI();
+      rerenderData();
+    });
+    el.profitColorRedBtn.addEventListener("click", () => {
+      profitColorMode = "red-profit";
+      persistSettings();
+      applyProfitColorMode();
+      syncSettingsUI();
+      if (latestComparePayload?.compareSnapshot) {
+        renderPositions(latestComparePayload.positions || [], latestComparePayload.compareSnapshot || null);
+        renderComparePnl(latestComparePayload.compareSnapshot || null);
+      } else if (latestPayload) {
+        renderSnapshot(latestPayload.snapshot, latestPayload.walletAddress);
+      }
+    });
+    el.profitColorGreenBtn.addEventListener("click", () => {
+      profitColorMode = "green-profit";
+      persistSettings();
+      applyProfitColorMode();
+      syncSettingsUI();
+      if (latestComparePayload?.compareSnapshot) {
+        renderPositions(latestComparePayload.positions || [], latestComparePayload.compareSnapshot || null);
+        renderComparePnl(latestComparePayload.compareSnapshot || null);
+      } else if (latestPayload) {
+        renderSnapshot(latestPayload.snapshot, latestPayload.walletAddress);
+      }
+    });
+    el.defaultViewSimplifiedBtn.addEventListener("click", () => {
+      defaultCompareView = "simplified";
+      persistSettings();
+      syncSettingsUI();
+      if (!latestComparePayload?.compareSnapshot) {
+        hideUnchangedMarkets = true;
+        return;
+      }
+      hideUnchangedMarkets = true;
+      renderPositions(latestComparePayload.positions || [], latestComparePayload.compareSnapshot || null);
+    });
+    el.defaultViewFullBtn.addEventListener("click", () => {
+      defaultCompareView = "full";
+      persistSettings();
+      syncSettingsUI();
+      if (!latestComparePayload?.compareSnapshot) {
+        hideUnchangedMarkets = false;
+        return;
+      }
+      hideUnchangedMarkets = false;
+      renderPositions(latestComparePayload.positions || [], latestComparePayload.compareSnapshot || null);
+    });
+    el.historyPrevBtn.addEventListener("click", () => {
+      if (!latestPayload?.history?.length || historyPage <= 1) return;
+      historyPage -= 1;
+      renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+    });
+    el.historyNextBtn.addEventListener("click", () => {
+      const totalPages = Math.max(1, Math.ceil((latestPayload?.history?.length || 0) / HISTORY_PAGE_SIZE));
+      if (!latestPayload?.history?.length || historyPage >= totalPages) return;
+      historyPage += 1;
+      renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+    });
+    window.addEventListener("click", (event) => {
+      if (
+        settingsOpen &&
+        !el.settingsAnchor.contains(event.target)
+      ) {
+        closeSettings();
+      }
+    });
+    el.walletChip.addEventListener("click", copyWalletAddress);
+    window.addEventListener("load", () => {
+      loadSettings();
+      applyTheme();
+      applyProfitColorMode();
+      syncSettingsUI();
+      loadDashboard();
+    });
+  </script>
+</body>
+</html>

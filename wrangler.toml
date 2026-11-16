@@ -1,0 +1,17 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+name = "polymarket-snapshot"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-03-24"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+POLYMARKET_USER_ADDRESS = "0x5838192D931f91D2e56893C634aD8861A49C367C"
+PUSD_CONTRACT_ADDRESS = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
+CHAIN_ID = "137"
+SNAPSHOT_RETENTION = "100"
+
+[[d1_databases]]
+binding = "DB"
+database_id = "455f72ab-103e-413d-bff8-30726a46fcf6"
+database_name = "polymarket-snapshot"
+preview_database_id = "DB"

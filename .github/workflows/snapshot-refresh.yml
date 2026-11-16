@@ -1,0 +1,36 @@
+name: Snapshot Refresh
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: action
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip -r scripts/requirements.txt
+
+      - name: Refresh snapshot to D1
+        env:
+          CLOUDFLARE_ACCOUNT_ID: "7e1d81bbd6646256381bd8a30b9532c2"
+          CLOUDFLARE_D1_DATABASE_ID: "455f72ab-103e-413d-bff8-30726a46fcf6"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          POLYMARKET_USER_ADDRESS: "0x5838192D931f91D2e56893C634aD8861A49C367C"
+          PUSD_CONTRACT_ADDRESS: "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
+          CHAIN_ID: "137"
+          SNAPSHOT_RETENTION: "100"
+        run: python scripts/snapshot_refresh.py
