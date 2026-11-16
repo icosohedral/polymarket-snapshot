@@ -13,3 +13,6 @@ tmp/
 .DS_Store
 __pycache__/
 *.pyc
+
+# Optional local config read by scripts/common.py; may hold keys
+config.json
