@@ -1597,7 +1597,8 @@
         statusLoadFailed: "加载失败: {message}",
         statusRefreshing: "正在拉取最新数据...",
         statusRefreshDone: "快照已更新 · {positionsCount} 个持仓",
-        statusRefreshFailed: "更新失败: {message}"
+        statusRefreshFailed: "更新失败: {message}",
+        statusLiveFallback: "实时数据暂不可用，显示 {time} 的快照"
       },
       en: {
         pageTitle: "Polymarket Snapshot Dashboard",
@@ -1687,7 +1688,8 @@
         statusLoadFailed: "Load failed: {message}",
         statusRefreshing: "Fetching latest data...",
         statusRefreshDone: "Snapshot updated · {positionsCount} positions",
-        statusRefreshFailed: "Update failed: {message}"
+        statusRefreshFailed: "Update failed: {message}",
+        statusLiveFallback: "Live data unavailable, showing the snapshot from {time}"
       }
     };
 
@@ -1891,6 +1893,10 @@
     // Progress and errors stay visible; pass a ttl for success notes that should clear themselves.
     function setStatus(text, ttl = 0) {
       clearTimeout(statusTimer);
+      // With no other message, keep reminding that the page shows stored data.
+      if (!text && latestPayload?.live?.source === "snapshot_fallback") {
+        text = t("statusLiveFallback", { time: formatSnapshotTime(latestPayload.snapshot?.snapshot_at) });
+      }
       el.status.textContent = text;
       el.status.hidden = !text;
       if (text && ttl) {
@@ -2702,7 +2708,9 @@
         renderComparePnl(null);
         renderHistory(data.history || [], data.snapshot?.id);
         setStatus("");
-        const latestHistorySnapshotId = data.history?.[0]?.id;
+        // When showing a stored snapshot, compare against the one before it, not itself.
+        const latestHistorySnapshotId = (data.history || [])
+          .find((row) => row.id !== data.snapshot?.id)?.id;
         if (latestHistorySnapshotId) {
           await loadCompare(latestHistorySnapshotId, { silent: true });
         }

@@ -52,7 +52,25 @@ export async function buildLiveDashboardPayload(
     return buildSnapshotDashboardPayload(env.DB, settings.walletAddress);
   }
 
-  const { rows, usdcResult } = prefetched ?? (await fetchLiveData(settings));
+  let live: PrefetchedLiveData;
+  try {
+    live = prefetched ?? (await fetchLiveData(settings));
+  } catch (error) {
+    // Live data unavailable (e.g. Polymarket 429): serve the latest stored snapshot
+    // instead of failing the whole page. Explicit refreshes (prefetched) still fail loudly.
+    const fallback = await buildSnapshotDashboardPayload(env.DB, settings.walletAddress);
+    if (!fallback.snapshot) {
+      throw error;
+    }
+    return {
+      ...fallback,
+      live: {
+        source: "snapshot_fallback",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+  const { rows, usdcResult } = live;
   const positions = rows.map(simplifyPosition);
   const dashboardPositions = positions
     .map((position) => normalizePositionForDashboard(position, settings.walletAddress))

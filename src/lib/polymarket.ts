@@ -6,6 +6,26 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36";
 
+// Polymarket rate-limits Cloudflare's shared egress with 429s; back off briefly
+// before giving up, honouring a short Retry-After when one is sent.
+const RETRY_DELAYS_MS = [800, 2_000];
+
+async function fetchWithRetry(url: string): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(url, {
+      headers: { "Accept": "application/json", "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (response.status !== 429 || attempt >= RETRY_DELAYS_MS.length) {
+      return response;
+    }
+    const retryAfterMs = Number(response.headers.get("Retry-After")) * 1000;
+    const delay =
+      retryAfterMs > 0 && retryAfterMs <= 3_000 ? retryAfterMs : RETRY_DELAYS_MS[attempt];
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+}
+
 export type RawPosition = Record<string, unknown>;
 export type DashboardPosition = Record<string, unknown>;
 
@@ -28,13 +48,7 @@ export async function fetchAllPositions(
       url.searchParams.set("cursor", cursor);
     }
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        "Accept": "application/json",
-        "User-Agent": USER_AGENT,
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    const response = await fetchWithRetry(url.toString());
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       throw new Error(
@@ -81,10 +95,7 @@ export async function fetchClosedRealizedPnl(
     url.searchParams.set("limit", "500");
     url.searchParams.set("condition", chunk.join(","));
 
-    const response = await fetch(url.toString(), {
-      headers: { "Accept": "application/json", "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    const response = await fetchWithRetry(url.toString());
     if (!response.ok) {
       throw new Error(`Polymarket closed positions request failed: ${response.status}`);
     }
