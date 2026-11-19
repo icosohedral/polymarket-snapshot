@@ -1595,6 +1595,7 @@
         profitColorGreen: "绿盈红亏",
         defaultViewLabel: "对比时默认显示",
         compare: "对比",
+        cancelCompare: "取消对比",
         compareBusy: "对比中...",
         delete: "删除",
         deleteBusy: "删除中...",
@@ -1687,6 +1688,7 @@
         profitColorGreen: "Green profit / red loss",
         defaultViewLabel: "When comparing, show",
         compare: "Compare",
+        cancelCompare: "Cancel comparison",
         compareBusy: "Comparing...",
         delete: "Delete",
         deleteBusy: "Deleting...",
@@ -2594,8 +2596,11 @@
           const isBusyDelete = busyAction === "delete" && Number(busySnapshotId) === Number(item.id);
           compareButton.disabled = isBusyCompare || busyAction === "delete";
           deleteButton.disabled = isBusyDelete || busyAction === "compare";
-          compareButton.title = t("compare");
-          compareButton.setAttribute("aria-label", t("compare"));
+          // The active card's compare button toggles the comparison off.
+          const compareLabel = isActive ? t("cancelCompare") : t("compare");
+          compareButton.title = compareLabel;
+          compareButton.setAttribute("aria-label", compareLabel);
+          compareButton.setAttribute("aria-pressed", String(isActive));
           deleteButton.title = t("delete");
           deleteButton.setAttribute("aria-label", t("delete"));
           compareButton.classList.toggle("busy", isBusyCompare);
@@ -2621,7 +2626,9 @@
                 <path d="M14 11V17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
             `;
-          compareButton.addEventListener("click", () => loadCompare(item.id));
+          compareButton.addEventListener("click", () =>
+            isActive ? clearCompare() : loadCompare(item.id)
+          );
           deleteButton.addEventListener("click", () => deleteSnapshot(item.id));
         }
         el.historyList.appendChild(card);
@@ -2629,6 +2636,18 @@
     }
 
 
+
+    // Leave compare mode and show the plain live positions again.
+    function clearCompare() {
+      if (!latestPayload) return;
+      activeCompareSnapshotId = null;
+      latestComparePayload = null;
+      lastRenderedClosedSince = null;
+      changeFilter = "all";
+      renderPositions(latestPayload.positions || []);
+      renderComparePnl(null);
+      renderHistory(latestPayload.history || [], latestPayload.snapshot?.id);
+    }
 
     async function loadCompare(snapshotId, options = {}) {
       if (!latestPayload) return;
