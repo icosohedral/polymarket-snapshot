@@ -744,7 +744,20 @@
 
     .history-summary { min-width: 0; display: grid; gap: 2px; }
 
-    .history-time { font-size: 12px; color: var(--muted); }
+    .history-time { font-size: 12px; color: var(--muted); cursor: default; }
+    /* Both labels share one grid cell; hovering any time cross-fades every card to its full date. */
+    .time-swap { display: inline-grid; vertical-align: top; }
+    .time-swap > span {
+      grid-area: 1 / 1;
+      white-space: nowrap;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .time-swap .time-absolute { opacity: 0; transform: translateY(3px); }
+    .history-list:has(.history-time:hover) .time-relative { opacity: 0; transform: translateY(-3px); }
+    .history-list:has(.history-time:hover) .time-absolute { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .time-swap > span { transition: none; transform: none !important; }
+    }
 
     .history-main {
       font-size: 15px;
@@ -2044,6 +2057,32 @@
       return formatSnapshotTime(value);
     }
 
+    // "3 小时前" / "3 hours ago"; hovering any history time reveals every full time.
+    const RELATIVE_UNITS = [
+      ["year", 365 * 86400],
+      ["month", 30 * 86400],
+      ["day", 86400],
+      ["hour", 3600],
+      ["minute", 60]
+    ];
+
+    function formatRelativeTime(value) {
+      const date = new Date(value);
+      if (!value || Number.isNaN(date.getTime())) return "-";
+      const seconds = (Date.now() - date.getTime()) / 1000;
+      if (seconds < 60) return currentLanguage === "en" ? "just now" : "刚刚";
+      const formatter = new Intl.RelativeTimeFormat(currentLanguage === "en" ? "en" : "zh-CN", { numeric: "always" });
+      const [unit, size] = RELATIVE_UNITS.find(([, unitSeconds]) => seconds >= unitSeconds);
+      return formatter.format(-Math.floor(seconds / size), unit);
+    }
+
+    // Keep relative labels current while the page stays open.
+    setInterval(() => {
+      document.querySelectorAll(".history-time[datetime] .time-relative").forEach((node) => {
+        node.textContent = formatRelativeTime(node.parentElement.getAttribute("datetime"));
+      });
+    }, 60_000);
+
     function formatSignedNumber(value, fractionDigits = 2) {
       const number = Number(value || 0);
       const sign = number > 0 ? "+" : "";
@@ -2525,7 +2564,7 @@
         card.innerHTML = `
           <div class="history-row">
             <div class="history-summary">
-              <div class="history-time">${formatSnapshotTime(item.snapshot_at)}</div>
+              <time class="history-time" datetime="${escapeHtml(item.snapshot_at)}"><span class="time-swap"><span class="time-relative">${formatRelativeTime(item.snapshot_at)}</span><span class="time-absolute" aria-hidden="true">${formatSnapshotTime(item.snapshot_at)}</span></span></time>
               <div class="history-main">${formatMoney(item.total_assets)}</div>
             </div>
             ${isCurrent ? "" : `
