@@ -2090,7 +2090,7 @@
     // Keep relative labels current while the page stays open.
     setInterval(() => {
       document.querySelectorAll(".history-time[datetime] .time-relative").forEach((node) => {
-        node.textContent = formatRelativeTime(node.parentElement.getAttribute("datetime"));
+        node.textContent = formatRelativeTime(node.closest("time").getAttribute("datetime"));
       });
     }, 60_000);
 
