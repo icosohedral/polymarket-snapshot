@@ -727,13 +727,20 @@
       border-color: var(--line);
     }
 
-    .history-item.current .history-time::after {
-      content: " · 当前";
-      color: var(--accent-ink);
+    /* Sits where the compare/delete buttons are on other cards. */
+    .history-current-badge {
+      flex: 0 0 auto;
+      height: 24px;
+      padding: 0 9px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
       font-weight: 500;
+      color: var(--accent-ink);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-line);
+      border-radius: 999px;
     }
-
-    html[lang="en"] .history-item.current .history-time::after { content: " · current"; }
 
     .history-row {
       display: flex;
@@ -1592,6 +1599,7 @@
         delete: "删除",
         deleteBusy: "删除中...",
         currentSnapshot: "当前快照",
+        currentBadge: "当前",
         loadingCompareTitle: "正在加载历史对比",
         statusLoadingCompare: "加载历史对比...",
         statusCompareFailed: "历史对比失败: {message}",
@@ -1683,6 +1691,7 @@
         delete: "Delete",
         deleteBusy: "Deleting...",
         currentSnapshot: "Current snapshot",
+        currentBadge: "Current",
         loadingCompareTitle: "Loading history compare",
         statusLoadingCompare: "Loading history compare...",
         statusCompareFailed: "History compare failed: {message}",
@@ -2567,7 +2576,7 @@
               <time class="history-time" datetime="${escapeHtml(item.snapshot_at)}"><span class="time-swap"><span class="time-relative">${formatRelativeTime(item.snapshot_at)}</span><span class="time-absolute" aria-hidden="true">${formatSnapshotTime(item.snapshot_at)}</span></span></time>
               <div class="history-main">${formatMoney(item.total_assets)}</div>
             </div>
-            ${isCurrent ? "" : `
+            ${isCurrent ? `<span class="history-current-badge">${t("currentBadge")}</span>` : `
             <div class="history-actions">
               <button class="history-action compare" type="button">${t("compare")}</button>
               <button class="history-action delete" type="button">${t("delete")}</button>
